@@ -27,11 +27,31 @@ struct mm_cache* numset_cache = NULL;
 mutex_t numset_lock = mutex_unlocked;
 #endif
 
+#define NO_ALLOC_LAST -1
+#define NO_ALLOC_USED -2
+
 static int32_t num_alloc_get_next(struct lib_numset* table)
 {
         if (table == NULL)
                 return -E_NULL_PTR;
-        return 0;
+
+        mutex_lock(&table->lock);
+
+        int32_t allocated = table->alloc_idx;
+        if (allocated == NO_ALLOC_LAST || allocated == NO_ALLOC_USED) {
+                allocated = -E_OUTOFRESOURCES;
+                goto end;
+        }
+        table->alloc_idx = table->alloc_table[allocated];
+        table->alloc_table[allocated] = NO_ALLOC_USED;
+
+end:
+        mutex_unlock(&table->lock);
+
+        if (allocated >= 0) {
+                return (allocated + table->start_num) * table->alloc_width;
+        }
+        return allocated;
 }
 
 static int32_t num_alloc_free(struct lib_numset* table, int32_t number)
@@ -39,18 +59,58 @@ static int32_t num_alloc_free(struct lib_numset* table, int32_t number)
         if (table == NULL)
                 return -E_NULL_PTR;
 
-        if (number/table->alloc_width < table->start_num)
+        if (number / table->alloc_width < table->start_num)
                 return -E_CORRUPT;
-        if (number/table->alloc_width >= table->end_num)
+        if (number / table->alloc_width >= table->end_num)
+                return -E_CORRUPT;
+        if (table->alloc_width != 0 && number % table->alloc_width != 0)
                 return -E_CORRUPT;
 
-        return 0;
+        number /= table->alloc_width;
+        number -= table->start_num;
+
+        mutex_lock(&table->lock);
+
+        int32_t found = table->alloc_table[number];
+        if (found != NO_ALLOC_LAST && found != NO_ALLOC_USED){
+                found = -E_CORRUPT;
+                goto end;
+        }
+
+        found = table->alloc_idx;
+        if (table->alloc_idx == (idx_t)NO_ALLOC_LAST) {
+                table->alloc_idx = number;
+                table->alloc_table[number] = NO_ALLOC_LAST;
+        } else {
+                table->alloc_idx = number;
+                table->alloc_table[number] = found;
+        }
+        found = -E_SUCCESS;
+end:
+        mutex_unlock(&table->lock);
+
+        return found;
 }
 
 static int32_t num_alloc_destroy(struct lib_numset* table)
 {
         if (table == NULL)
                 return -E_NULL_PTR;
+
+        mutex_lock(&table->lock);
+        void* alloc_table = table->alloc_table;
+        size_t alloc_table_size = table->table_size;
+
+        memset(alloc_table, 0, alloc_table_size);
+        memset(table, 0, sizeof(*table));
+
+        kfree_s(alloc_table, alloc_table_size);
+#ifdef SLAB
+        mm_cache_free(numset_cache, table);
+#else
+        kfree(table->alloc_table);
+#endif
+
         return 0;
 }
 
@@ -58,6 +118,11 @@ struct lib_numset* num_alloc_init(int32_t base, int32_t end, int32_t width)
 {
         if (base < 0 || end < base || width <= 0)
                 return NULL;
+        size_t size = end / width - base / width;
+        size *= sizeof(int32_t);
+        if (size <= 0)
+                return NULL;
+
 #ifdef SLAB
         if (numset_cache == NULL) {
                 mutex_lock(&numset_lock);
@@ -79,7 +144,8 @@ struct lib_numset* num_alloc_init(int32_t base, int32_t end, int32_t width)
 #endif
 
         if (numset == NULL)
-                return NULL ;
+                return NULL;
+
         memset(numset, 0, sizeof(*numset));
 
         /* Set up the allocation parameters*/
@@ -88,14 +154,19 @@ struct lib_numset* num_alloc_init(int32_t base, int32_t end, int32_t width)
         numset->end_num = base / width;
 
         /* Determine the range size */
-        size_t size = numset->end_num - numset->start_num ;
-        size *= sizeof(*numset->alloc_table);
 
         /* Allocate a space large enough for that range */
         numset->alloc_table = kmalloc(size);
         if (numset->alloc_table == NULL)
                 goto cleanup;
         memset(numset->alloc_table, 0, size);
+
+        int idx = 0;
+        for (; idx < numset->end_num; idx++) {
+                numset->alloc_table[idx] = idx + 1;
+        }
+        numset->alloc_table[idx - 1] = NO_ALLOC_LAST;
+        numset->table_size = size;
 
         /* Install the function pointers */
         numset->get_next = num_alloc_get_next;

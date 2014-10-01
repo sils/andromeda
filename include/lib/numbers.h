@@ -1,6 +1,6 @@
 /*
  *  Andromeda
- *  Copyright (C) 2011  Bart Kuivenhoven
+ *  Copyright (C) 2014  Bart Kuivenhoven
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 #define __LIB_NUMBERS_H
 
 #include <types.h>
+#include <thread.h>
 
 struct lib_numset {
         /* start_num is base number divided by alloc_width */
@@ -34,6 +35,10 @@ struct lib_numset {
 
         /* the table containing the allocation data */
         int32_t* alloc_table;
+        size_t table_size;
+
+        /* The lock to make sure the allocation has been made atomically */
+        mutex_t lock;
 
         int32_t (*get_next)(struct lib_numset* table);
         int32_t (*free)(struct lib_numset* table, int32_t number);
