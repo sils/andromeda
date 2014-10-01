@@ -1,0 +1,9 @@
+{
+"name" : "lib_numbers",
+"link" : false,
+"archive" : false,
+"source-files" : ["numbers.c"],
+"compiler-flags" : "",
+"linker-flags" : "",
+"archiver-flags" : ""
+}

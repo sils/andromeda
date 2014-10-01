@@ -22,6 +22,10 @@
 #include <sys/io.h>
 #include <andromeda/system.h>
 
+#ifdef X86
+#include <arch/x86/pic.h>
+#endif
+
 #include <text.h>
 
 static void ol_ps2_sent_controller_command(ol_ps2_dev_t ctrl, uint8_t cmd);

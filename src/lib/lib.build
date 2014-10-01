@@ -6,5 +6,10 @@
 "compiler-flags" : "",
 "linker-flags" : "",
 "archiver-flags" : "",
-"depend" : [{"path" : "avl/avl.build"}, {"path" : "list/list.build"}, {"path" : "stdio/stdio.build"}]
+"depend" : [
+    {"path" : "avl/avl.build"}, 
+    {"path" : "list/list.build"},
+    {"path" : "stdio/stdio.build"},
+    {"path" : "numbers/numbers.build"}
+    ]
 }
