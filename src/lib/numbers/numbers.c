@@ -49,7 +49,7 @@ end:
         mutex_unlock(&table->lock);
 
         if (allocated >= 0) {
-                return (allocated + table->start_num) * table->alloc_width;
+                return (allocated * table->alloc_width) + table->start_num;
         }
         return allocated;
 }
@@ -59,15 +59,15 @@ static int32_t num_alloc_free(struct lib_numset* table, int32_t number)
         if (table == NULL)
                 return -E_NULL_PTR;
 
-        if (number / table->alloc_width < table->start_num)
+        if (number < table->start_num)
                 return -E_CORRUPT;
-        if (number / table->alloc_width >= table->end_num)
+        if (number > table->end_num)
                 return -E_CORRUPT;
-        if (table->alloc_width != 0 && number % table->alloc_width != 0)
+        if ((number - table->start_num) % table->alloc_width != 0)
                 return -E_CORRUPT;
 
-        number /= table->alloc_width;
         number -= table->start_num;
+        number /= table->alloc_width;
 
         mutex_lock(&table->lock);
 
@@ -92,6 +92,26 @@ end:
         return found;
 }
 
+static int32_t num_alloc_check_free(struct lib_numset* table, int32_t number)
+{
+        if (table == NULL)
+                return -E_NULL_PTR;
+
+        if (number < table->start_num || number > table->end_num)
+                return -E_CORRUPT;
+        if ((number - table->start_num) % table->alloc_width != 0)
+                return -E_CORRUPT;
+
+        number -= table->start_num;
+        number /= table->alloc_width;
+
+        int ret = table->alloc_table[number];
+        if (ret != NO_ALLOC_USED)
+                return LIB_NUM_ALLOC_FREE;
+
+        return LIB_NUM_ALLOC_USED;
+}
+
 static int32_t num_alloc_destroy(struct lib_numset* table)
 {
         if (table == NULL)
@@ -114,11 +134,47 @@ static int32_t num_alloc_destroy(struct lib_numset* table)
         return 0;
 }
 
-struct lib_numset* num_alloc_init(int32_t base, int32_t end, int32_t width)
+#define NUM_ALLOC_TEST 1
+
+#ifdef NUM_ALLOC_TEST
+#define NUM_ALLOC_TEST_OFFSET 0
+#define NUM_ALLOC_TEST_SIZE 4
+#define NUM_ALLOC_TEST_WIDTH 1
+
+int num_alloc_test()
 {
-        if (base < 0 || end < base || width <= 0)
+        int error = -E_SUCCESS;
+        struct lib_numset* alloc_test = num_alloc_init(NUM_ALLOC_TEST_OFFSET,
+                        NUM_ALLOC_TEST_OFFSET + NUM_ALLOC_TEST_SIZE,
+                        NUM_ALLOC_TEST_WIDTH);
+
+        if (alloc_test == NULL)
+                return -E_NULL_PTR;
+
+        int tests[NUM_ALLOC_TEST_SIZE];
+        int i = 0;
+        for (; i < NUM_ALLOC_TEST_SIZE; i++)
+                tests[i] = alloc_test->get_next(alloc_test);
+
+        for (i = 0; i < NUM_ALLOC_TEST_SIZE; i++) {
+                int test = alloc_test->check_free(alloc_test, tests[i]);
+                if (test != LIB_NUM_ALLOC_USED) {
+                        error |= -E_GENERIC;
+                        goto cleanup;
+                }
+        }
+
+cleanup:
+        alloc_test->destroy(alloc_test);
+        return -E_NOFUNCTION;
+}
+#endif
+
+struct lib_numset* num_alloc_init(int32_t base, int32_t length, int32_t width)
+{
+        if (base < 0 || length <= 0 || width <= 0)
                 return NULL;
-        size_t size = end / width - base / width;
+        size_t size = length / width;
         size *= sizeof(int32_t);
         if (size <= 0)
                 return NULL;
@@ -150,8 +206,8 @@ struct lib_numset* num_alloc_init(int32_t base, int32_t end, int32_t width)
 
         /* Set up the allocation parameters*/
         numset->alloc_width = width;
-        numset->start_num = base / width;
-        numset->end_num = base / width;
+        numset->start_num = base;
+        numset->end_num = base + length * width;
 
         /* Determine the range size */
 
@@ -172,8 +228,9 @@ struct lib_numset* num_alloc_init(int32_t base, int32_t end, int32_t width)
         numset->get_next = num_alloc_get_next;
         numset->free = num_alloc_free;
         numset->destroy = num_alloc_destroy;
+        numset->check_free = num_alloc_check_free;
 
-        /* We should now be good to go */
+        /* We should be good to go by now */
         return numset;
 
 cleanup:

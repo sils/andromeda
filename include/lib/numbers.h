@@ -22,6 +22,9 @@
 #include <types.h>
 #include <thread.h>
 
+#define LIB_NUM_ALLOC_FREE 0
+#define LIB_NUM_ALLOC_USED 1
+
 struct lib_numset {
         /* start_num is base number divided by alloc_width */
         int32_t start_num;
@@ -42,10 +45,15 @@ struct lib_numset {
 
         int32_t (*get_next)(struct lib_numset* table);
         int32_t (*free)(struct lib_numset* table, int32_t number);
+        int32_t (*check_free)(struct lib_numset* table, int32_t number);
         int32_t (*destroy)(struct lib_numset* table);
 
 };
 
 struct lib_numset* num_alloc_init(int32_t base, int32_t end, int32_t width);
+
+#ifdef NUM_ALLOC_TEST
+int num_alloc_test();
+#endif
 
 #endif
