@@ -5,5 +5,6 @@
 "source-files" : ["numbers.c"],
 "compiler-flags" : "",
 "linker-flags" : "",
-"archiver-flags" : ""
+"archiver-flags" : "",
+"dcompiler-flags" : [{"key" : "num_alloc_test", "flags" : "-D NUM_ALLOC_TEST"}]
 }

@@ -134,8 +134,6 @@ static int32_t num_alloc_destroy(struct lib_numset* table)
         return 0;
 }
 
-#define NUM_ALLOC_TEST 1
-
 #ifdef NUM_ALLOC_TEST
 #define NUM_ALLOC_TEST_OFFSET 0
 #define NUM_ALLOC_TEST_SIZE 4
