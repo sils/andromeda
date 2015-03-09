@@ -84,6 +84,11 @@
                 "info": "The memory manager group",
                 "mandatory": true
         },
+        "num_alloc_test": {
+                "ignore-autoconf": false,
+                "info": "Run a quick test on the numbers allocator",
+                "mandatory": false
+        },
         "syscall-test": {
                 "ignore-autoconf": true,
                 "info": "Enables system call tests",

@@ -68,6 +68,7 @@ extern "C" {
 #define E_OUTOFBOUNDS           0x62
 #define E_CONFLICT              0x63
 #define E_NOT_FOUND             0x64
+#define E_OUTOFRESOURCES        0x65
 
 #define E_LOCKED                0x70
 #define E_UNLOCKED              0x71

@@ -19,7 +19,8 @@
 	{"key" : "cas", "flags" : "-D CAS"},
 	{"key" : "syscall-test", "flags" : "-D SC_TEST"},
 	{"key" : "interrupt-test", "flags" : "-D INTERRUPT_TEST"},
-	{"key" : "timer_dbg", "flags" : "-D TIMER_DBG"}
+	{"key" : "timer_dbg", "flags" : "-D TIMER_DBG"},
+	{"key" : "num_alloc_test", "flags" : "-D NUM_ALLOC_TEST"}
 	],
 "linker-flags" : "",
 "archiver-flags" : ""
