@@ -75,6 +75,7 @@ extern "C" {
 #define E_OUT_OF_RESOURCES      0x72
 
 #define E_CLEAN_PARENT          0x200
+#define E_IN_USE                0x201
 
 #ifdef __cplusplus
 }

@@ -38,22 +38,20 @@ int vm_segment_mark_loaded_global(struct vm_segment* s)
 
 int vm_segment_mark_loaded(int cpuid, struct vm_segment* s)
 {
-        if (vm_loaded[cpuid]->find((int)s->virt_base, vm_loaded[cpuid]) != NULL)
+        if (vm_loaded[cpuid]->find((int) s->virt_base, vm_loaded[cpuid]) != NULL)
                 return -E_ALREADY_INITIALISED;
 
-        if (vm_loaded[cpuid]->add((int)s->virt_base, s,
-                        vm_loaded[cpuid]) != -E_SUCCESS)
+        if (vm_loaded[cpuid]->add((int) s->virt_base, s, vm_loaded[cpuid]) != -E_SUCCESS)
                 return -E_GENERIC;
         return -E_SUCCESS;
 }
 
 int vm_segment_mark_unloaded(int cpuid, struct vm_segment* s)
 {
-        if (vm_loaded[cpuid]->find((int)s->virt_base, vm_loaded[cpuid]) == NULL)
+        if (vm_loaded[cpuid]->find((int) s->virt_base, vm_loaded[cpuid]) == NULL)
                 return -E_NOT_YET_INITIALISED;
 
-        if (vm_loaded[cpuid]->delete((int)s->virt_base,
-                        vm_loaded[cpuid]) != -E_SUCCESS) {
+        if (vm_loaded[cpuid]->delete((int) s->virt_base, vm_loaded[cpuid]) != -E_SUCCESS) {
                 return -E_GENERIC;
         }
 
@@ -69,18 +67,18 @@ int vm_segment_mark_unloaded(int cpuid, struct vm_segment* s)
 static inline struct vm_segment*
 vm_get_loaded(int cpuid, void* addr)
 {
-        addr_t a = (addr_t)addr;
+        addr_t a = (addr_t) addr;
         a &= ~0x3FF;
 
-        struct tree* tree = vm_loaded[cpuid]->find_close((int)addr,
+        struct tree* tree = vm_loaded[cpuid]->find_close((int) addr,
                         vm_loaded[cpuid]);
 
         struct vm_segment* segment = tree->data;
         boolean go_back = FALSE;
         boolean go_fwd = FALSE;
         while (TRUE) {
-                addr_t seg_base = (addr_t)segment->virt_base;
-                addr_t seg_end = (addr_t)segment->virt_base + segment->size;
+                addr_t seg_base = (addr_t) segment->virt_base;
+                addr_t seg_end = (addr_t) segment->virt_base + segment->size;
                 if (seg_base <= a && a < seg_end)
                         return segment;
 
@@ -223,7 +221,7 @@ int vm_segment_grow(struct vm_segment* s, size_t size)
         mutex_lock(&d->lock);
 
         addr_t ns = s->size + size;
-        addr_t nend = (addr_t)s->virt_base + ns;
+        addr_t nend = (addr_t) s->virt_base + ns;
 
         int ret = -E_OUTOFBOUNDS;
         struct vm_segment* i;
@@ -237,8 +235,8 @@ int vm_segment_grow(struct vm_segment* s, size_t size)
                 addr_t start;
                 addr_t end;
                 if (mutex_test(&i->lock) == 0) {
-                        start = (addr_t)i->virt_base;
-                        end = (addr_t)(i->virt_base + i->size);
+                        start = (addr_t) i->virt_base;
+                        end = (addr_t) (i->virt_base + i->size);
                 } else {
                         mutex_unlock(&d->lock);
                         /** \todo Find a way to yield CPU time here */
@@ -282,7 +280,7 @@ int vm_segment_load(int cpu, struct vm_segment* s)
         }
 
         int ret = -E_SUCCESS;
-        if (vm_loaded[cpu]->find((int)s->virt_base, vm_loaded[cpu]) == NULL) {
+        if (vm_loaded[cpu]->find((int) s->virt_base, vm_loaded[cpu]) == NULL) {
                 ret = page_map_range(cpu, s->pages);
                 if (ret == -E_SUCCESS) {
                         ret = vm_segment_mark_loaded(cpu, s);
@@ -489,7 +487,7 @@ int vm_unload_task(int cpu, struct vm_descriptor* task)
         }
 
         return -E_SUCCESS;
-error:
+        error:
         panic("Something went terribly wrong in unloading the task!");
         return -E_GENERIC; /* Return statement to keep the compiler happy! */
 }
@@ -514,16 +512,16 @@ int vm_kernel_fault_write(addr_t fault_addr, int mapped)
         /**
          * \todo Add permission checking
          */
-        struct vm_segment* segment = vm_get_loaded(0, (void*)fault_addr);
+        struct vm_segment* segment = vm_get_loaded(0, (void*) fault_addr);
         if (segment == NULL) {
-                printf("Fault addr: %X\n", (uint32_t)fault_addr);
+                printf("Fault addr: %X\n", (uint32_t) fault_addr);
                 panic("Trying to map an unloaded page!!!!!!");
                 /**
                  * If this was in userspace, segfault!
                  */
         }
 
-        void* phys = get_phys(0, (void*)(fault_addr & ~0x3FF));
+        void* phys = get_phys(0, (void*) (fault_addr & ~0x3FF));
         if (phys != NULL) {
                 panic("Faulting on existing page ... wtf!");
         }
@@ -532,7 +530,7 @@ int vm_kernel_fault_write(addr_t fault_addr, int mapped)
         if (phys == NULL)
                 panic("Out of memory!!!");
 
-        page_map(0, (void*)(fault_addr & ~0x3FF), phys, 0);
+        page_map(0, (void*) (fault_addr & ~0x3FF), phys, 0);
 
         return -E_SUCCESS;
 
@@ -559,8 +557,8 @@ int vm_kernel_fault_read(addr_t fault_addr, int mapped, addr_t eip)
                  */
                 printf(
                                 "The kernel wants to read garbage from invalid memory.\n");
-                printf("Address:   %X\n", (int)fault_addr);
-                printf("Fault eip: %X\n", (int)eip);
+                printf("Address:   %X\n", (int) fault_addr);
+                printf("Fault eip: %X\n", (int) eip);
                 panic("Reason enough to panic, I'd say!");
         }
 

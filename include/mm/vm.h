@@ -153,6 +153,7 @@ void* vm_get_kernel_heap_pages(size_t size);
 int vm_free_kernel_heap_pages(void* ptr);
 void* vm_map_heap(void* phys, size_t size);
 int vm_unmap_heap(void* virt);
+int vm_segment_has_pointer(char* name, void* ptr);
 
 /* Range allocator functions */
 int vm_range_alloc_init();

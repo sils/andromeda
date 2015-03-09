@@ -16,6 +16,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <types.h>
+#include <fs/vfs.h>
 
 #ifndef __IOCTL_H
 #define __IOCTL_H
@@ -75,5 +76,7 @@ struct ioctl_serial_data {
                 uint8_t stopchar;
         };
 };
+
+typedef int (*ioctl_fn)(struct vfile*, ioctl_t, void*);
 
 #endif

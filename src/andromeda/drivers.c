@@ -24,10 +24,11 @@
 #include <drivers/root.h>
 #include <fs/vfs.h>
 #include <lib/tree.h>
+#include <lib/numbers.h>
+#include <mm/vm.h>
 
 static int drv_setup_vfile(struct vfile* file, fs_read_hook_t read,
-                fs_write_hook_t write,
-                int (*ioctl)(struct vfile*, ioctl_t, void*), int32_t dev_id);
+                fs_write_hook_t write, ioctl_fn ioctl, int32_t dev_id);
 
 struct device dev_root;
 int32_t dev_id = 0;
@@ -106,6 +107,8 @@ int device_attach(struct device* this, struct device* child)
         }
         last->next = child;
         child->parent = this;
+
+        atomic_inc(&this->driver->attach_cnt);
         return -E_SUCCESS;
 }
 
@@ -113,18 +116,27 @@ int device_detach(struct device* this, struct device* child)
 {
         struct device* carriage = this->children;
         struct device* last = carriage;
+        int success = 0;
         while (carriage != NULL ) {
                 if (carriage == child) {
                         if (carriage == last) {
                                 this->children = carriage->next;
-                                return -E_SUCCESS;
+                                success = 1;
+                                break;
                         } else {
                                 last->next = carriage->next;
                                 carriage->next = NULL;
-                                return -E_SUCCESS;
+                                success = 1;
+                                break;
                         }
                 }
         }
+
+        if (success) {
+                atomic_dec(&this->driver->attach_cnt);
+                return -E_SUCCESS;
+        }
+
         return -E_NOTFOUND;
 }
 
@@ -135,6 +147,8 @@ device_find_id(unsigned int id)
         return dev;
 }
 
+static struct lib_numset* dev_id_numset = NULL;
+
 int device_id_alloc(struct device* dev)
 {
         if (dev == NULL) {
@@ -144,26 +158,12 @@ int device_id_alloc(struct device* dev)
                 return -E_ALREADY_INITIALISED;
         }
 
-        int32_t idx = dev_id;
-
-        mutex_lock(&dev_id_lock);
-        int overflow = FALSE;
-        while (device_find_id(idx) != NULL ) {
-                idx++;
-                if (idx < 0 && !overflow) {
-                        overflow = TRUE;
-                        idx = 1;
-                }
-                if (idx < 0 && overflow) {
-                        mutex_unlock(&dev_id_lock);
-                        return -E_OUT_OF_RESOURCES;
-                }
+        if (dev_id_numset == NULL || dev_id_numset->get_next == NULL) {
+                return -E_NOT_YET_INITIALISED;
         }
+
+        int32_t idx = dev_id_numset->get_next(dev_id_numset);
         dev_tree->add(idx, dev, dev_tree);
-        dev_id = idx + 1;
-        if (dev_id < 0)
-                dev_id = 1;
-        mutex_unlock(&dev_id_lock);
 
         dev->dev_id = idx;
         return idx;
@@ -196,8 +196,7 @@ static int drv_vfile_dummy_ioctl(struct vfile* file __attribute__((unused)),
 }
 
 static int drv_setup_vfile(struct vfile* file, fs_read_hook_t read,
-                fs_write_hook_t write,
-                int (*ioctl)(struct vfile*, ioctl_t, void*), int32_t dev_id)
+                fs_write_hook_t write, ioctl_fn ioctl, int32_t dev_id)
 {
         if (read == NULL) {
                 read = drv_vfile_dummy_read;
@@ -220,9 +219,59 @@ static int drv_setup_vfile(struct vfile* file, fs_read_hook_t read,
         return -E_SUCCESS;
 }
 
+static int dev_remove_device(struct device* dev)
+{
+        if (dev == NULL) {
+                return -E_NULL_PTR;
+        }
+
+        if (dev->driver != NULL) {
+                if (atomic_get(&dev->driver->attach_cnt) != 0) {
+                        return -E_IN_USE;
+                }
+                dev->driver->detach(dev->parent, dev);
+                dev->driver->io->close(dev->driver->io);
+
+                memset(dev->driver, 0, sizeof(*dev->driver));
+                kfree_s(dev->driver, sizeof(dev->driver));
+        }
+
+        dev->data_destroy_callback(dev);
+        memset(dev, 0, sizeof(*dev));
+        kfree_s(dev, sizeof(*dev));
+
+        return -E_NOFUNCTION;
+}
+
+static struct vfile* dev_open_device(struct device* dev)
+{
+        if (dev == NULL || dev->driver == NULL || dev->driver->io == NULL) {
+                return NULL;
+        }
+        dev->driver->io->open(dev->driver->io, NULL, 0);
+        return dev->driver->io;
+}
+
+static int dev_cleanup_callback(struct device* dev)
+{
+        if (dev == NULL) {
+                return -E_NULL_PTR;
+        }
+
+        if (dev->device_data == NULL) {
+                return -E_SUCCESS;
+        }
+
+        int has_ptr = vm_segment_has_pointer(".heap", dev->device_data);
+        if (has_ptr > 0) {
+                kfree_s(dev->device_data, dev->device_data_size);
+        }
+
+        return -E_SUCCESS;
+}
+
 int dev_setup_driver(struct device *dev, fs_read_hook_t io_read,
-                fs_write_hook_t io_write,
-                int (*ioctl)(struct vfile* file, ioctl_t request, void* data))
+                fs_write_hook_t io_write, ioctl_fn ioctl)
 {
         struct driver *drv = kmalloc(sizeof(*drv));
         if (drv == NULL) {
@@ -241,6 +290,10 @@ int dev_setup_driver(struct device *dev, fs_read_hook_t io_read,
                 io_file->close(io_file);
                 return -E_OUT_OF_RESOURCES;
         }
+
+        dev->open = dev_open_device;
+        dev->disconnect = dev_remove_device;
+        dev->data_destroy_callback = dev_cleanup_callback;
 
         dev->children = NULL;
         dev->parent = NULL;
@@ -301,6 +354,7 @@ void dev_dbg()
 int dev_init()
 {
         debug("Building the device tree\n");
+        dev_id_numset = num_alloc_init(0, 0x7fffffff, 1);
         dev_root_init();
 
 #ifdef DEV_DBG

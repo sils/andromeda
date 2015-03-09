@@ -184,8 +184,8 @@ static int vm_range_mark_mapped(segment, range)
         return -E_SUCCESS;
 }
 
-static int vm_range_mark_unmapped(segment, range)
-        struct vm_segment* segment;struct vm_range_descriptor* range;
+static int vm_range_mark_unmapped(struct vm_segment* segment,
+                struct vm_range_descriptor* range)
 {
         if (segment == NULL || range == NULL) {
                 return -E_NULL_PTR;
@@ -611,6 +611,29 @@ vm_find_segment(char* name)
         }
         printf("Not found!\n");
         return NULL ;
+}
+
+/**
+ * \fn vm_segment_has_pointer
+ * \param name
+ * \param ptr
+ */
+
+int vm_segment_has_pointer(char* name, void* ptr)
+{
+        if (name == NULL || ptr == NULL) {
+                return -E_NULL_PTR;
+        }
+
+        struct vm_segment* s = vm_find_segment(".heap");
+        if (s == NULL) {
+                return -E_NOT_FOUND;
+        }
+
+        if (ptr >= s->virt_base && ptr < (s->virt_base + s->size)) {
+                return 1;
+        }
+        return 0;
 }
 
 /**

@@ -95,6 +95,8 @@ struct driver {
 struct device {
         /** \fn open(this) */
         struct vfile* (*open)(struct device* this);
+        int (*disconnect)(struct device* this);
+
 
         /**
          * \var parent
@@ -126,6 +128,7 @@ struct device {
         size_t device_data_size;
         void* device_data;
 
+        int (*data_destroy_callback)(struct device* this);
         /** \var lock */
         mutex_t lock;
 
@@ -164,7 +167,7 @@ struct device* device_find_id(unsigned int dev_id);
 int device_id_alloc(struct device* dev);
 int dev_setup_driver(struct device *dev, fs_read_hook_t io_read,
                 fs_write_hook_t io_write,
-                int (*ioctl)(struct vfile* file, ioctl_t request, void* data));
+                ioctl_fn);
 struct device *dev_find_devtype(struct device *dev, device_type_t type);
 
 #ifdef __cplusplus
