@@ -52,6 +52,33 @@
                 "info": "Turns all the debug calls into visible output",
                 "mandatory": false
         },
+        "enable_stack_protector": {
+                "enum": {
+                        "all_stack_protector": {
+                                "ignore-autoconf": false,
+                                "info": "Put the stack protector on every function",
+                                "mandatory": false
+                        },
+                        "nostack_protector": {
+                                "ignore-autoconf": false,
+                                "info": "Disable the stack protector entirely",
+                                "mandatory": false
+                        },
+                        "stack_protector": {
+                                "ignore-autoconf": false,
+                                "info": "Enable the basic stack protector",
+                                "mandatory": false
+                        },
+                        "strong_stack_protector": {
+                                "ignore-autoconf": false,
+                                "info": "Enable the stack protector rather agressively",
+                                "mandatory": false
+                        }
+                },
+                "ignore-autoconf": false,
+                "info": "The stack protector setup",
+                "mandatory": true
+        },
         "gdb": {
                 "ignore-autoconf": false,
                 "info": "Enable GDB debugging information",

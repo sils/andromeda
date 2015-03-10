@@ -7,7 +7,7 @@
 "compiler" : "gcc",
 "linker" : "ld",
 "archiver" : "ar",
-"compiler-flags" : "-c -std=gnu89 -nostdlib -fno-builtin -nostdinc -fno-stack-protector -ffreestanding -pipe -Wall -Wextra -Iinclude/",
+"compiler-flags" : "-c -std=gnu89 -nostdlib -fno-builtin -nostdinc -ffreestanding -pipe -Wall -Wextra -Iinclude/",
 "dcompiler-flags" : [
 	{"key" : "X86", "flags" : "-D X86 -D __INTEL -m32 -mtune=native -march=i386"},
 	{"key" : "slab", "flags" : "-D SLAB"},
@@ -20,7 +20,11 @@
 	{"key" : "gdb", "flags" : "-ggdb -g"},
 	{"key" : "asm_output (breaks build)", "flags" : "-S" },
 	{"key" : "dbg_statements", "flags" : "-D MSG_DBG"},
-	{"key" : "warn_statements" , "flags" : "-D WARN"}
+	{"key" : "warn_statements" , "flags" : "-D WARN"},
+	{"key" : "nostack_protector", "flags" : "-fno-stack-protector" },
+	{"key" : "stack_protector", "flags" : "-fstack-protector -D STACK_PROTECTOR" },
+	{"key" : "strong_stack_protector", "flags" : "-fstack-protector-strong -D STACK_PROTECTOR" },
+	{"key" : "all_stack_protector", "flags" : "-fstack-protector-all -D STACK_PROTECTOR" }
 	],
 "linker-flags" : "-oformat=elf32-i386 -melf_i386 -Tscripts/x86.ld",
 "archiver-flags" : "rs",

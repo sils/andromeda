@@ -23,6 +23,7 @@
 extern "C" {
 #endif
 
+__attribute__((noreturn))
 void panicDebug(char *, char*, int);
 #define panic(str) panicDebug(str,__FILE__, __LINE__)
 
