@@ -220,6 +220,17 @@ static int drv_setup_vfile(struct vfile* file, fs_read_hook_t read,
         return -E_SUCCESS;
 }
 
+static struct vfile* device_open(struct device* this)
+{
+        if (this == NULL || this->driver == NULL || this->driver->io == NULL) {
+                return NULL ;
+        }
+
+        this->driver->io->open(this->driver->io, NULL, 0);
+
+        return this->driver->io;
+}
+
 int dev_setup_driver(struct device *dev, fs_read_hook_t io_read,
                 fs_write_hook_t io_write,
                 int (*ioctl)(struct vfile* file, ioctl_t request, void* data))
@@ -228,13 +239,13 @@ int dev_setup_driver(struct device *dev, fs_read_hook_t io_read,
         if (drv == NULL) {
                 return -E_NOMEM;
         }
+        /* Create a file */
         struct vfile *io_file = vfs_create();
         if (io_file == NULL) {
                 kfree(drv);
                 return -E_NOMEM;
         }
         memset(drv, 0, sizeof(*drv));
-        memset(io_file, 0, sizeof(*io_file));
 
         if (device_id_alloc(dev) == -E_OUT_OF_RESOURCES) {
                 kfree(drv);
@@ -245,8 +256,8 @@ int dev_setup_driver(struct device *dev, fs_read_hook_t io_read,
         dev->children = NULL;
         dev->parent = NULL;
         drv->io = io_file;
-        drv_setup_vfile(io_file, io_read, io_write, ioctl, dev->dev_id);
         dev->driver = drv;
+        drv_setup_vfile(io_file, io_read, io_write, ioctl, dev->dev_id);
 
         drv->driver_lock = 0;
         drv->attach_cnt.cnt = 0;
@@ -260,9 +271,11 @@ int dev_setup_driver(struct device *dev, fs_read_hook_t io_read,
         drv->suspend = &device_recurse_suspend;
         drv->find_type = &dev_find_devtype;
         drv->find = &device_find_id;
+        dev->open = &device_open;
 
         io_file->fs_data.fs_data_struct = dev;
         io_file->fs_data.fs_data_size = sizeof(*dev);
+        io_file->fs_data.device_id = dev->dev_id;
 
         return -E_SUCCESS;
 }
