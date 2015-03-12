@@ -302,6 +302,15 @@ dev_find_devtype(struct device *dev, device_type_t type)
         return NULL ;
 }
 
+struct device* dev_get_device(struct vfile* this)
+{
+        if (this == NULL) {
+                return NULL;
+        }
+
+        return device_find_id(this->fs_data.device_id);
+}
+
 void dev_dbg()
 {
         int i = 0;

@@ -26,7 +26,9 @@
 #define MAX_LINE_LENGTH (1000)
 #define TAB_WIDTH (8)
 #define BACKSPACE (-1)
-#define MAX_TTY_DEPTH (800)
+#define DEFAULT_TTY_DEPTH (800)
+#define DEFAULT_TTY_LINE_WIDTH (80)
+#define DEFAULT_TTY_LINE_HEIGHT (25)
 
 struct tty_stream {
         struct vfile* stream;
@@ -47,11 +49,13 @@ struct tty_data {
         /* How long are the lines */
         uint16_t line_width;
         /* How many lines do we have on screen */
-        size_t lines;
+        size_t frame_height;
 
         /* Where our frame ends, we can work back from there */
         size_t frame_line;
 
+        /* How many lines do we accept maximally in our buffers */
+        size_t buffer_depth;
         /* Put a lock on it, to keep it safe */
         mutex_t tty_lock;
 
@@ -70,12 +74,25 @@ static struct tty_line* drv_tty_get_line(struct tty_data* tty, size_t line_idx)
                 if (line == NULL) {
                         return NULL ;
                 }
-                memset(line, 0, sizeof(*line));
+                memset(line, ' ', sizeof(*line));
                 line->offset = line_idx;
                 tty->input_buffer->add(line_idx, line, tty->input_buffer);
 
         }
         return line;
+}
+
+static struct tty_data* drv_tty_get_data_obj(struct device* dev)
+{
+        if (dev == NULL || dev->device_data == NULL) {
+                return NULL ;
+        }
+
+        struct tty_data* data = dev->device_data;
+        if (dev->device_data_size != sizeof(*data)) {
+                return NULL ;
+        }
+        return data;
 }
 
 static size_t drv_tty_read_from_tty(struct vfile* this, char* buf, size_t idx,
@@ -84,6 +101,54 @@ static size_t drv_tty_read_from_tty(struct vfile* this, char* buf, size_t idx,
         if (len == 0 || this == NULL || buf == NULL) {
                 return 0;
         }
+
+        struct tty_data* data = drv_tty_get_data_obj(dev_get_device(this));
+        if (data == NULL) {
+                return 0;
+        }
+
+        size_t copied = 0;
+
+        size_t stream_idx = idx / data->line_width;
+        int16_t line_idx = idx % data->line_width;
+
+        mutex_lock(&data->tty_lock);
+
+        struct tty_line* line = drv_tty_get_line(data, stream_idx);
+        if (line == NULL) {
+                goto cleanup;
+        }
+
+        for (; copied < len; copied++) {
+                if (line_idx >= data->line_width) {
+                        line_idx = 0;
+                        stream_idx ++;
+
+                        line = drv_tty_get_line(data, stream_idx);
+                        if (line == NULL) {
+                                goto cleanup;
+                        }
+                }
+                switch(line->line[line_idx]) {
+                case '\n':
+                        buf[copied] = '\n';
+                        line_idx = 0;
+                        stream_idx++;
+
+                        line = drv_tty_get_line(data, stream_idx);
+                        if (line == NULL) {
+                                goto cleanup;
+                        }
+
+                        break;
+                default:
+                        buf[copied] = line->line[line_idx];
+                        line_idx++;
+                        break;
+                }
+        }
+
+        cleanup: mutex_unlock(&data->tty_lock);
 
         return 0;
 }
@@ -95,42 +160,47 @@ static size_t drv_tty_write_to_tty(struct vfile* this, char* buf, size_t idx,
                 return 0;
         }
 
-        struct device* dev = device_find_id(this->fs_data.device_id);
-        if (dev == NULL) {
+        struct tty_data* data = drv_tty_get_data_obj(dev_get_device(this));
+        if (data == NULL) {
                 return 0;
         }
 
-        struct tty_data* data = dev->device_data;
-        if (dev->device_data_size != sizeof(*data)) {
-                return 0;
-        }
-
-        size_t written = 0;
+        size_t copied = 0;
 
         size_t stream_idx = idx / data->line_width;
         int16_t line_idx = idx % data->line_width;
 
         mutex_lock(&data->tty_lock);
 
-        for (; written < len; written++ ) {
+        struct tty_line* line = drv_tty_get_line(data, stream_idx);
+        if (line == NULL) {
+                goto cleanup;
+        }
+
+        for (; copied < len; copied++) {
                 if (line_idx >= data->line_width) {
                         line_idx = 0;
                         stream_idx++;
+
+                        line = drv_tty_get_line(data, stream_idx);
+                        if (line == NULL) {
+                                goto cleanup;
+                        }
                 }
 
-                struct tty_line* line = drv_tty_get_line(data, stream_idx);
-                if (line == NULL) {
-                        goto cleanup;
-                }
-                line->line[line_idx] = buf[written];
-
-                switch (buf[written]) {
+                switch (buf[copied]) {
                 case '\n':
-                        line_idx = 0 ;
+                        line->line[line_idx] = '\n';
+                        line_idx = 0;
                         stream_idx++;
+
+                        line = drv_tty_get_line(data, stream_idx);
+                        if (line == NULL) {
+                                goto cleanup;
+                        }
                         break;
                 case '\r':
-                        line_idx = 0 ;
+                        line_idx = 0;
                         break;
                 case '\t':
                         line_idx += TAB_WIDTH - (line_idx % TAB_WIDTH);
@@ -139,6 +209,7 @@ static size_t drv_tty_write_to_tty(struct vfile* this, char* buf, size_t idx,
                         line_idx += BACKSPACE;
                         break;
                 default:
+                        line->line[line_idx] = buf[copied];
                         line_idx++;
                         break;
                 }
@@ -147,7 +218,7 @@ static size_t drv_tty_write_to_tty(struct vfile* this, char* buf, size_t idx,
         data->frame_line = stream_idx;
 
         cleanup: mutex_unlock(&data->tty_lock);
-        return written;
+        return copied;
 }
 
 static int dev_tty_ioctl(struct vfile* this, ioctl_t request, void* data)
@@ -218,10 +289,16 @@ struct device* drv_tty_start(struct device* parent, int num)
         if (tty_data->input_buffer == NULL) {
                 // Do cleanup
         }
+
         tty_data->output_buffer = tree_new_avl();
         if (tty_data->output_buffer == NULL) {
                 // Do cleanup
         }
+
+        tty_data->buffer_depth = DEFAULT_TTY_DEPTH;
+        tty_data->line_width = DEFAULT_TTY_LINE_WIDTH;
+        tty_data->frame_height = DEFAULT_TTY_LINE_HEIGHT;
+        tty_data->tty_lock = mutex_unlocked;
 
         sprintf(tty->name, "tty%i", num);
         tty->type = TTY;

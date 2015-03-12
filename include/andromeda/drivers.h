@@ -163,6 +163,7 @@ int dev_setup_driver(struct device *dev, fs_read_hook_t io_read,
                 fs_write_hook_t io_write,
                 int (*ioctl)(struct vfile* file, ioctl_t request, void* data));
 struct device *dev_find_devtype(struct device *dev, device_type_t type);
+struct device* dev_get_device(struct vfile* this);
 
 #ifdef __cplusplus
 }
