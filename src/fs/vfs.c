@@ -93,10 +93,19 @@ static int vfs_open_dir(struct vfile* file __attribute__((unused)),
  */
 static int vfs_open(struct vfile* file, char* path, size_t strln)
 {
-        printf("VFS_OPEN unimplemented!");
+        if (file == NULL) {
+                return -E_NULL_PTR;
+        }
+
         if (file->type == DIR)
                 return vfs_open_dir(file, path, strln);
-        return -E_NOFUNCTION;
+
+        if (path == NULL || strln == 0) {
+                atomic_inc(&file->open_cnt);
+        } else {
+                return file->fs_data.open(file, path, strlen);
+        }
+        return -E_SUCCESS;
 }
 
 static size_t fs_write_dummy(struct vfile* file __attribute__((unused)),
@@ -104,6 +113,7 @@ static size_t fs_write_dummy(struct vfile* file __attribute__((unused)),
                 size_t offset __attribute__((unused)),
                 size_t len __attribute__((unused)))
 {
+        warning("Attempting to write to an unimplemented file system!\n");
         return 0;
 }
 
@@ -112,11 +122,13 @@ static size_t fs_read_dummy(struct vfile* file __attribute__((unused)),
                 size_t offset __attribute__((unused)),
                 size_t len __attribute__((unused)))
 {
+        warning("Attempting to read from an unimplemented file system!\n");
         return 0;
 }
 
 static int fs_close_dummy(struct vfile* file __attribute__((unused)))
 {
+        warning("Attempting to close a file on an unimplemented file system\n");
         return 0;
 }
 
@@ -124,6 +136,7 @@ static int fs_open_dummy(struct vfile* file __attribute__((unused)),
                 char* path __attribute__((unused)),
                 size_t len __attribute__((unused)))
 {
+        warning("Attempting to open from an unimplemented file system!\n");
         return 0;
 }
 
@@ -181,25 +194,32 @@ vfs_create()
 
 static int vfs_close(struct vfile* stream)
 {
-        if (stream == NULL || stream->close == NULL)
+        if (stream == NULL) {
                 return -E_NULL_PTR;
-
-        int ret = stream->flush(stream);
-        if (ret != -E_SUCCESS) {
-                /* Don't actually close yet, we might have removed necessary
-                 * data, but not all pointers have been freed by the cleanup.
-                 *
-                 * Do write a warning, but keep the pointers, for future cleanup
-                 */
-                warning("Failed to close a file, memory lingering!\n");
-                return ret;
         }
 
+        if (atomic_dec(&stream->open_cnt) == 0) {
+
+                if (stream->flush == NULL) {
+                        return -E_NULL_PTR;
+                }
+                int ret = stream->flush(stream);
+                if (ret != -E_SUCCESS) {
+                        /* Don't actually close yet, we might have removed necessary
+                         * data, but not all pointers have been freed by the cleanup.
+                         *
+                         * Do write a warning, but keep the pointers, for future cleanup
+                         */
+                        warning("Failed to close a file, memory lingering!\n");
+                        return ret;
+                }
+
 #ifdef SLAB
-        mm_cache_free(vfile_cache, stream);
+                mm_cache_free(vfile_cache, stream);
 #else
-        kfree(stream);
+                kfree(stream);
 #endif
+        }
         return -E_SUCCESS;
 }
 

@@ -96,6 +96,7 @@ struct vfile {
         uint32_t file_flags;
 
         mutex_t file_lock;
+        atomic_t open_cnt;
 
         /**
          * \var dir_ent
