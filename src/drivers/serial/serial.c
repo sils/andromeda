@@ -539,6 +539,12 @@ static int dev_serial_init(struct device* parent, uint16_t com_port, char* name)
         /* Hook up the device to its parent */
         device_attach(parent, serial_device);
 
+        /*
+         * Make sure that the file is only cleaned up once the device has been
+         * disconnected
+         */
+        serial_device->open(serial_device);
+
         return ret;
 }
 

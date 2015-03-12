@@ -86,15 +86,6 @@ static size_t vga_text_write(struct vfile* this, char* buf, size_t idx,
         return written;
 }
 
-static struct vfile* vga_text_open(struct device *this)
-{
-        if (this == NULL || this->driver == NULL) {
-                return NULL ;
-        }
-
-        return this->driver->io;
-}
-
 static struct device* vga_text_detect(struct device* this)
 {
         return this->children;
@@ -163,7 +154,12 @@ int vga_text_init(struct device* parent)
         atomic_inc(&vga_text_count);
         vga_dev = this;
 
-        dev_setup_driver(this, vga_text_read, vga_text_write, vga_text_ioctl);
+        /* File IO is installed in this function */
+        int err = dev_setup_driver(this, vga_text_read, vga_text_write,
+                        vga_text_ioctl);
+        if (err != -E_SUCCESS) {
+                panic("something went wrong!");
+        }
         this->driver->io->fs_data.fs_data_struct = (void*) 0xB8000;
         this->driver->io->fs_data.fs_data_size = 0x1000;
 
@@ -172,14 +168,15 @@ int vga_text_init(struct device* parent)
 
         this->type = GRAPHICS;
 
-        this->open = vga_text_open;
         this->driver->detect = vga_text_detect;
 
-        parent->driver->attach(parent, this);
         device_id_alloc(this);
+        parent->driver->attach(parent, this);
         vga_text_id = this->dev_id;
 
-        this->open = vga_text_open;
+        /* Make sure the file is only cleaned up once the device has been
+         * disconnected */
+        this->open(this);
 
         return -E_SUCCESS;
 }

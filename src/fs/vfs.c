@@ -103,7 +103,7 @@ static int vfs_open(struct vfile* file, char* path, size_t strln)
         if (path == NULL || strln == 0) {
                 atomic_inc(&file->open_cnt);
         } else {
-                return file->fs_data.open(file, path, strlen);
+                return file->fs_data.open(file, path, strln);
         }
         return -E_SUCCESS;
 }

@@ -56,14 +56,9 @@ typedef enum {
         IOCTL_UART_GET_CHARLEN = 0xB3,
 
         IOCTL_TTY_RESIZE = 0x100,
-        IOCTL_TTY_CONNECT_INPUT = 0x101,
-        IOCTL_TTY_DISCONNECT_INPUT = 0x102,
-        IOCTL_TTY_CONNECT_OUTPUT = 0x103,
-        IOCTL_TTY_DISCONNECT_OUTPUT = 0x104,
-
-        IOCTL_TTY_GET_SIZE = 0x110,
-        IOCTL_TTY_GET_INPUT = 0x111,
-        IOCTL_TTY_GET_OUTPUT = 0x112
+        IOCTL_TTY_GET_SIZE = 0x101,
+        IOCTL_TTY_SET_BUFLEN = 0x102,
+        IOCTL_TTY_GET_BUFLEN = 0x103
 
 } ioctl_t;
 
@@ -79,13 +74,11 @@ struct ioctl_vga_text_data {
 
 struct ioctl_tty_data {
         union {
-                size_t line_idx;
                 struct {
                         uint16_t line_width;
                         uint16_t no_lines;
                 } dimension;
-                struct vfile* input_device;
-                struct vfile* output_device;
+                size_t buf_len;
         };
 };
 

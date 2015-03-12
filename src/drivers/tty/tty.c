@@ -23,36 +23,62 @@
 #include <andromeda/system.h>
 #include <lib/tree.h>
 
+#define MAX_LINE_LENGTH (1000)
+#define TAB_WIDTH (8)
+#define BACKSPACE (-1)
+#define MAX_TTY_DEPTH (800)
+
 struct tty_stream {
         struct vfile* stream;
         struct tty_stream* next;
 };
 
 struct tty_line {
+        /* Actual length of this line */
         int16_t length;
-        struct tty_line* next;
-        struct tty_line* prev;
+        /* Character offset in stream */
         size_t offset;
-        char line[];
+
+        /* And the data for the line */
+        char line[MAX_LINE_LENGTH];
 };
 
 struct tty_data {
+        /* How long are the lines */
         uint16_t line_width;
+        /* How many lines do we have on screen */
         size_t lines;
 
-        size_t line_idx;
+        /* Where our frame ends, we can work back from there */
+        size_t frame_line;
+
+        /* Put a lock on it, to keep it safe */
         mutex_t tty_lock;
 
+        /* Data for stdin */
         struct tree_root* input_buffer;
+        /* Data for stdout */
         struct tree_root* output_buffer;
-
-        struct tty_stream* input_stream;
-        struct tty_stream* output_stream;
-
-        struct tty_stream* stdio_stream;
 };
 
-static size_t drv_tty_read(struct vfile* this, char* buf, size_t idx,
+static struct tty_line* drv_tty_get_line(struct tty_data* tty, size_t line_idx)
+{
+        struct tty_line* line = tty->input_buffer->find(line_idx,
+                        tty->input_buffer);
+        if (line == NULL) {
+                line = kmalloc(sizeof(*line));
+                if (line == NULL) {
+                        return NULL ;
+                }
+                memset(line, 0, sizeof(*line));
+                line->offset = line_idx;
+                tty->input_buffer->add(line_idx, line, tty->input_buffer);
+
+        }
+        return line;
+}
+
+static size_t drv_tty_read_from_tty(struct vfile* this, char* buf, size_t idx,
                 size_t len)
 {
         if (len == 0 || this == NULL || buf == NULL) {
@@ -62,14 +88,66 @@ static size_t drv_tty_read(struct vfile* this, char* buf, size_t idx,
         return 0;
 }
 
-static size_t drv_tty_write(struct vfile* this, char* buf, size_t idx,
+static size_t drv_tty_write_to_tty(struct vfile* this, char* buf, size_t idx,
                 size_t len)
 {
         if (len == 0 || this == NULL || buf == NULL) {
                 return 0;
         }
 
-        return 0;
+        struct device* dev = device_find_id(this->fs_data.device_id);
+        if (dev == NULL) {
+                return 0;
+        }
+
+        struct tty_data* data = dev->device_data;
+        if (dev->device_data_size != sizeof(*data)) {
+                return 0;
+        }
+
+        size_t written = 0;
+
+        size_t stream_idx = idx / data->line_width;
+        int16_t line_idx = idx % data->line_width;
+
+        mutex_lock(&data->tty_lock);
+
+        for (; written < len; written++ ) {
+                if (line_idx >= data->line_width) {
+                        line_idx = 0;
+                        stream_idx++;
+                }
+
+                struct tty_line* line = drv_tty_get_line(data, stream_idx);
+                if (line == NULL) {
+                        goto cleanup;
+                }
+                line->line[line_idx] = buf[written];
+
+                switch (buf[written]) {
+                case '\n':
+                        line_idx = 0 ;
+                        stream_idx++;
+                        break;
+                case '\r':
+                        line_idx = 0 ;
+                        break;
+                case '\t':
+                        line_idx += TAB_WIDTH - (line_idx % TAB_WIDTH);
+                        break;
+                case '\b':
+                        line_idx += BACKSPACE;
+                        break;
+                default:
+                        line_idx++;
+                        break;
+                }
+        }
+
+        data->frame_line = stream_idx;
+
+        cleanup: mutex_unlock(&data->tty_lock);
+        return written;
 }
 
 static int dev_tty_ioctl(struct vfile* this, ioctl_t request, void* data)
@@ -86,19 +164,11 @@ static int dev_tty_ioctl(struct vfile* this, ioctl_t request, void* data)
         switch (request) {
         case IOCTL_TTY_RESIZE:
                 break;
-        case IOCTL_TTY_CONNECT_INPUT:
-                break;
-        case IOCTL_TTY_DISCONNECT_INPUT:
-                break;
-        case IOCTL_TTY_CONNECT_OUTPUT:
-                break;
-        case IOCTL_TTY_DISCONNECT_OUTPUT:
-                break;
-        case IOCTL_TTY_GET_INPUT:
-                break;
-        case IOCTL_TTY_GET_OUTPUT:
-                break;
         case IOCTL_TTY_GET_SIZE:
+                break;
+        case IOCTL_TTY_SET_BUFLEN:
+                break;
+        case IOCTL_TTY_GET_BUFLEN:
                 break;
         default:
                 return -E_INVALID_ARG;
@@ -106,6 +176,23 @@ static int dev_tty_ioctl(struct vfile* this, ioctl_t request, void* data)
         }
 
         return -E_SUCCESS;
+}
+
+static struct vfile* drv_tty_open(struct device* dev)
+{
+        if (dev == NULL || dev->driver == NULL || dev->driver->io == NULL) {
+                return NULL ;
+        }
+
+        dev->driver->io->open(dev->driver->io, NULL, 0);
+
+        return dev->driver->io;
+}
+
+static void drv_tty_stop(struct device* device)
+{
+        /* Still needs hooks and implementing */
+        return;
 }
 
 struct device* drv_tty_start(struct device* parent, int num)
@@ -122,16 +209,29 @@ struct device* drv_tty_start(struct device* parent, int num)
         struct tty_data* tty_data = kmalloc(sizeof(*tty_data));
         if (tty_data == NULL) {
                 kfree_s(tty, sizeof(*tty));
-                return NULL;
+                return NULL ;
         }
 
         memset(tty, 0, sizeof(*tty));
         memset(tty_data, 0, sizeof(*tty_data));
+        tty_data->input_buffer = tree_new_avl();
+        if (tty_data->input_buffer == NULL) {
+                // Do cleanup
+        }
+        tty_data->output_buffer = tree_new_avl();
+        if (tty_data->output_buffer == NULL) {
+                // Do cleanup
+        }
 
         sprintf(tty->name, "tty%i", num);
         tty->type = TTY;
 
-        dev_setup_driver(tty, drv_tty_read, drv_tty_write, dev_tty_ioctl);
+        /* Adds a device file to the driver structure */
+        dev_setup_driver(tty, drv_tty_read_from_tty, drv_tty_write_to_tty,
+                        dev_tty_ioctl);
+        tty->open = drv_tty_open;
+        /* Prevent the device file from being cleaned up when not in use */
+        tty->open(tty);
 
         return NULL ;
 }

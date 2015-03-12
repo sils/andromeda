@@ -83,7 +83,7 @@ struct driver {
         mutex_t driver_lock; /** \var lock */
         /**
          * \var attach_cnt
-         *  \brief how many times has the driver been attached.
+         * \brief how many times has the driver been attached.
          */
         atomic_t attach_cnt;
 };
