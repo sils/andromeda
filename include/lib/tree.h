@@ -65,6 +65,8 @@ struct tree_root {
         void* (*find_larger)(int key, struct tree_root* root);
         int (*delete)(int key, struct tree_root* root);
         int (*purge)(struct tree_root*, int (dtor)(void*,void*), void*);
+        void* (*find_largest)(struct tree_root* root);
+        void* (*find_smallest)(struct tree_root* root);
 
         mutex_t mutex;
 };

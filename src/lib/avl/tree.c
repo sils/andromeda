@@ -445,14 +445,12 @@ static int avl_delete_node_orphan(struct tree* tree)
                 return -E_CORRUPT;
         }
 
-        if (tree->ldepth == 0 && tree->rdepth == 0 ) {
+        if (tree->ldepth == 0 && tree->rdepth == 0) {
                 tree->root->tree = NULL;
-        }
-        else if (tree->ldepth != 0 && tree->rdepth == 0) {
+        } else if (tree->ldepth != 0 && tree->rdepth == 0) {
                 tree->root->tree = tree->left;
                 tree->left->parent = NULL;
-        }
-        else if (tree->rdepth != 0 && tree->ldepth == 0) {
+        } else if (tree->rdepth != 0 && tree->ldepth == 0) {
                 tree->root->tree = tree->right;
                 tree->right->parent = NULL;
         } else {
@@ -692,7 +690,7 @@ int avl_flush(struct tree_root* root, int (dtor)(void*, void*), void* dtor_arg)
 static void* avl_find_smaller(int key, struct tree_root* t)
 {
         if (t == NULL) {
-                return NULL;
+                return NULL ;
         }
 
         mutex_lock(&t->mutex);
@@ -702,13 +700,13 @@ static void* avl_find_smaller(int key, struct tree_root* t)
         }
         mutex_unlock(&t->mutex);
 
-        return (ret == NULL) ? NULL : ret->data;
+        return (ret == NULL ) ? NULL : ret->data;
 }
 
 static void* avl_find_larger(int key, struct tree_root* t)
 {
         if (t == NULL) {
-                return NULL;
+                return NULL ;
         }
 
         mutex_lock(&t->mutex);
@@ -719,7 +717,7 @@ static void* avl_find_larger(int key, struct tree_root* t)
         }
         mutex_unlock(&t->mutex);
 
-        return (ret == NULL) ? NULL : ret->data;
+        return (ret == NULL ) ? NULL : ret->data;
 }
 
 /**
@@ -729,7 +727,7 @@ static void* avl_find_larger(int key, struct tree_root* t)
 static void* avl_find(int key, struct tree_root* t)
 {
         if (t == NULL) {
-                return NULL;
+                return NULL ;
         }
 
         mutex_lock(&t->mutex);
@@ -772,6 +770,31 @@ static int avl_delete(int key, struct tree_root* root)
         return ret;
 }
 
+static void* avl_find_largest(struct tree_root* t)
+{
+        if (t == NULL) {
+                return NULL ;
+        }
+        mutex_lock(&t->mutex);
+        struct tree* ret = avl_find_rightmost(t->tree);
+        mutex_unlock(&t->mutex);
+
+        return ret;
+}
+
+static void* avl_find_smallest(struct tree_root* t)
+{
+        if (t == NULL) {
+                return NULL ;
+        }
+
+        mutex_lock(&t->mutex);
+        struct tree* ret = avl_find_leftmost(t->tree);
+        mutex_unlock(&t->mutex);
+
+        return ret;
+}
+
 static void tree_avl_init(struct tree_root* t)
 {
         memset(t, 0, sizeof(*t));
@@ -784,6 +807,8 @@ static void tree_avl_init(struct tree_root* t)
         t->find_larger = avl_find_larger;
         t->delete = avl_delete;
         t->purge = avl_flush;
+        t->find_largest = avl_find_largest;
+        t->find_smallest = avl_find_smallest;
 
         t->mutex = mutex_unlocked;
 }
