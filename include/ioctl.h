@@ -58,7 +58,9 @@ typedef enum {
         IOCTL_TTY_RESIZE = 0x100,
         IOCTL_TTY_GET_SIZE = 0x101,
         IOCTL_TTY_SET_BUFLEN = 0x102,
-        IOCTL_TTY_GET_BUFLEN = 0x103
+        IOCTL_TTY_GET_BUFLEN = 0x103,
+        IOCTL_TTY_SET_TERMINAL = 0x104,
+        IOCTL_TTY_GET_TERMINAL = 0x105
 
 } ioctl_t;
 
@@ -79,6 +81,7 @@ struct ioctl_tty_data {
                         uint16_t no_lines;
                 } dimension;
                 size_t buf_len;
+                struct vfile* terminal;
         };
 };
 

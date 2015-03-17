@@ -30,11 +30,6 @@
 #define DEFAULT_TTY_LINE_WIDTH (80)
 #define DEFAULT_TTY_LINE_HEIGHT (25)
 
-struct tty_stream {
-        struct vfile* stream;
-        struct tty_stream* next;
-};
-
 struct tty_line {
         /* Actual length of this line */
         int16_t length;
@@ -54,6 +49,11 @@ struct tty_data {
         /* Where our frame ends, we can work back from there */
         size_t frame_line;
 
+        /* On which line we can find our cursor */
+        size_t cursor_line;
+        /* On which character we can find the cursor */
+        int16_t cursor_idx;
+
         /* How many lines do we accept maximally in our buffers */
         size_t buffer_depth;
         /* Put a lock on it, to keep it safe */
@@ -63,12 +63,15 @@ struct tty_data {
         struct tree_root* input_buffer;
         /* Data for stdout */
         struct tree_root* output_buffer;
+
+        /* Terminal file */
+        struct vfile* terminal;
 };
 
-static struct tty_line* drv_tty_get_line(struct tty_data* tty, size_t line_idx)
+static struct tty_line* drv_tty_get_line(struct tree_root* line_buffer,
+                size_t line_idx)
 {
-        struct tty_line* line = tty->input_buffer->find(line_idx,
-                        tty->input_buffer);
+        struct tty_line* line = line_buffer->find(line_idx, line_buffer);
         if (line == NULL) {
                 line = kmalloc(sizeof(*line));
                 if (line == NULL) {
@@ -76,8 +79,7 @@ static struct tty_line* drv_tty_get_line(struct tty_data* tty, size_t line_idx)
                 }
                 memset(line, ' ', sizeof(*line));
                 line->offset = line_idx;
-                tty->input_buffer->add(line_idx, line, tty->input_buffer);
-
+                line_buffer->add(line_idx, line, line_buffer);
         }
         return line;
 }
@@ -98,57 +100,77 @@ static struct tty_data* drv_tty_get_data_obj(struct device* dev)
 static size_t drv_tty_read_from_tty(struct vfile* this, char* buf, size_t idx,
                 size_t len)
 {
+        /* Verify the parameters */
         if (len == 0 || this == NULL || buf == NULL) {
                 return 0;
         }
 
+        /* Find the right data object */
         struct tty_data* data = drv_tty_get_data_obj(dev_get_device(this));
         if (data == NULL) {
                 return 0;
         }
 
+        /* Prepare some loop parameters */
         size_t copied = 0;
 
         size_t stream_idx = idx / data->line_width;
         int16_t line_idx = idx % data->line_width;
 
+        /* Lock the data */
         mutex_lock(&data->tty_lock);
 
-        struct tty_line* line = drv_tty_get_line(data, stream_idx);
+        struct tty_line* line = drv_tty_get_line(data->input_buffer,
+                        stream_idx);
+        /* If the data can't be found, unlock and return */
         if (line == NULL) {
                 goto cleanup;
         }
 
         for (; copied < len; copied++) {
                 if (line_idx >= data->line_width) {
+                        /* If a new line is needed:
+                         *   Reset the line index
+                         *   Increment the line counter
+                         *   Get the next line
+                         */
                         line_idx = 0;
-                        stream_idx ++;
+                        stream_idx++;
 
-                        line = drv_tty_get_line(data, stream_idx);
+                        line = drv_tty_get_line(data->input_buffer, stream_idx);
                         if (line == NULL) {
+                                /* If unable to continue, unlock and return */
                                 goto cleanup;
                         }
                 }
-                switch(line->line[line_idx]) {
+                switch (line->line[line_idx]) {
                 case '\n':
+                        /* If a newline was found, go to next line */
                         buf[copied] = '\n';
                         line_idx = 0;
                         stream_idx++;
 
-                        line = drv_tty_get_line(data, stream_idx);
+                        line = drv_tty_get_line(data->input_buffer, stream_idx);
                         if (line == NULL) {
+                                /* If line not found, clean our stuff up */
                                 goto cleanup;
                         }
 
                         break;
                 default:
+                        /* Copy to buffer */
                         buf[copied] = line->line[line_idx];
                         line_idx++;
                         break;
                 }
         }
 
-        cleanup: mutex_unlock(&data->tty_lock);
+        cleanup:
+        /* Move the cursor and then unlock */
+        data->cursor_line = stream_idx;
+        data->cursor_idx = line_idx;
+
+        mutex_unlock(&data->tty_lock);
 
         return 0;
 }
@@ -156,68 +178,101 @@ static size_t drv_tty_read_from_tty(struct vfile* this, char* buf, size_t idx,
 static size_t drv_tty_write_to_tty(struct vfile* this, char* buf, size_t idx,
                 size_t len)
 {
+        /* Verify the parameters */
         if (len == 0 || this == NULL || buf == NULL) {
                 return 0;
         }
 
+        /* Get te data object */
         struct tty_data* data = drv_tty_get_data_obj(dev_get_device(this));
         if (data == NULL) {
                 return 0;
         }
 
+        /* Configure line parameters */
         size_t copied = 0;
 
         size_t stream_idx = idx / data->line_width;
         int16_t line_idx = idx % data->line_width;
 
+        /* Enter critical section */
         mutex_lock(&data->tty_lock);
 
-        struct tty_line* line = drv_tty_get_line(data, stream_idx);
+        /* Get the line to write to */
+        struct tty_line* line = drv_tty_get_line(data->output_buffer,
+                        stream_idx);
+        /* If line not found, leave critical and return */
         if (line == NULL) {
                 goto cleanup;
         }
 
+        /* Do the copying */
         for (; copied < len; copied++) {
+                /* If at end of line */
                 if (line_idx >= data->line_width) {
+                        /* Reset line cursor */
                         line_idx = 0;
+                        /* Increment line index */
                         stream_idx++;
 
-                        line = drv_tty_get_line(data, stream_idx);
+                        /* Get new line */
+                        line = drv_tty_get_line(data->output_buffer,
+                                        stream_idx);
+                        /* If line not found, cleanup and return */
                         if (line == NULL) {
-                                goto cleanup;
+                                goto cleanup_written;
                         }
                 }
 
+                /* Switch on character */
                 switch (buf[copied]) {
                 case '\n':
+                        /* New line found, reset line */
                         line->line[line_idx] = '\n';
                         line_idx = 0;
                         stream_idx++;
 
-                        line = drv_tty_get_line(data, stream_idx);
+                        /* Get next line */
+                        line = drv_tty_get_line(data->output_buffer,
+                                        stream_idx);
+
+                        /* Cleanup if line not found! */
                         if (line == NULL) {
-                                goto cleanup;
+                                goto cleanup_written;
                         }
                         break;
                 case '\r':
+                        /* Carriage return, reset line index */
                         line_idx = 0;
                         break;
                 case '\t':
+                        /*
+                         * Tab character found, skip until line_idx % TABWIDTH
+                         * equals 0
+                         */
                         line_idx += TAB_WIDTH - (line_idx % TAB_WIDTH);
                         break;
                 case '\b':
+                        /* Backspace found, move back */
                         line_idx += BACKSPACE;
                         break;
                 default:
+                        /* No command character found, just copy the character */
                         line->line[line_idx] = buf[copied];
                         line_idx++;
                         break;
                 }
         }
 
-        data->frame_line = stream_idx;
+        cleanup_written:
+        /* Update cursor on screen */
+        data->cursor_line = stream_idx;
+        data->cursor_idx = line_idx;
 
-        cleanup: mutex_unlock(&data->tty_lock);
+        cleanup:
+        /* Unlock */
+        mutex_unlock(&data->tty_lock);
+        /* Return */
         return copied;
 }
 
@@ -240,6 +295,10 @@ static int dev_tty_ioctl(struct vfile* this, ioctl_t request, void* data)
         case IOCTL_TTY_SET_BUFLEN:
                 break;
         case IOCTL_TTY_GET_BUFLEN:
+                break;
+        case IOCTL_TTY_SET_TERMINAL:
+                break;
+        case IOCTL_TTY_GET_TERMINAL:
                 break;
         default:
                 return -E_INVALID_ARG;
@@ -288,11 +347,19 @@ struct device* drv_tty_start(struct device* parent, int num)
         tty_data->input_buffer = tree_new_avl();
         if (tty_data->input_buffer == NULL) {
                 // Do cleanup
+                kfree_s(tty_data, sizeof(*tty_data));
+                kfree_s(tty, sizeof(*tty));
+                return NULL ;
         }
 
         tty_data->output_buffer = tree_new_avl();
         if (tty_data->output_buffer == NULL) {
                 // Do cleanup
+                tty_data->input_buffer->purge(tty_data->input_buffer, NULL,
+                                NULL);
+                kfree_s(tty_data, sizeof(*tty_data));
+                kfree_s(tty, sizeof(*tty));
+                return NULL;
         }
 
         tty_data->buffer_depth = DEFAULT_TTY_DEPTH;
@@ -310,5 +377,5 @@ struct device* drv_tty_start(struct device* parent, int num)
         /* Prevent the device file from being cleaned up when not in use */
         tty->open(tty);
 
-        return NULL ;
+        return tty;
 }
