@@ -33,5 +33,6 @@
 	{"path" : "src/fs/fs.build"}, 
 	{"path" : "src/drivers/drivers.build"}, 
 	{"path" : "src/arch/arch.build"}
-	]
+	],
+"defines-header" : []
 }

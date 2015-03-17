@@ -21,3 +21,4 @@ andromeda.project
 andromeda.tags
 andromeda.workspace*
 .attach_pid*
+include/global.h

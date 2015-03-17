@@ -52,6 +52,7 @@
                 "info": "Turns all the debug calls into visible output",
                 "mandatory": false
         },
+        "defines-header": "include/global.h",
         "gdb": {
                 "ignore-autoconf": false,
                 "info": "Enable GDB debugging information",
