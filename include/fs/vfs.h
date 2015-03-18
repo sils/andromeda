@@ -29,7 +29,7 @@ extern "C"
 {
 #endif
 
-#ifdef SLAB
+#ifdef _CONFIG_SLAB
 struct mm_cache* vsuper_cache;
 #endif
 

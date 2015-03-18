@@ -20,7 +20,7 @@
 #include <andromeda/system.h>
 #include <mm/cache.h>
 
-#ifdef SLAB
+#ifdef _CONFIG_SLAB
 struct mm_cache* vfile_cache = NULL;
 struct mm_cache* vsuper_cache = NULL;
 struct mm_cache* block_cache = NULL;
@@ -34,7 +34,7 @@ static int vfs_close(struct vfile* stream);
 
 static int vfs_flush(struct vfile* stream);
 
-#ifdef SLAB
+#ifdef _CONFIG_SLAB
 static void vfs_cache_block_dtor(void* data,
                 struct mm_cache* cache __attribute__((unused)),
                 uint32_t data_size __attribute__((unused)))
@@ -149,7 +149,7 @@ struct vfile*
 vfs_create()
 {
         struct vfile* file;
-#ifndef SLAB
+#ifndef _CONFIG_SLAB
         file = kmalloc(sizeof(*file));
 #else
         file = mm_cache_alloc(vfile_cache, 0);
@@ -184,7 +184,7 @@ vfs_create()
         return file;
 
         err:
-#ifdef SLAB
+#ifdef _CONFIG_SLAB
         mm_cache_free(vfile_cache, file);
 #else
         kfree(file);
@@ -214,7 +214,7 @@ static int vfs_close(struct vfile* stream)
                         return ret;
                 }
 
-#ifdef SLAB
+#ifdef _CONFIG_SLAB
                 mm_cache_free(vfile_cache, stream);
 #else
                 kfree(stream);
@@ -302,7 +302,7 @@ int vfs_change_root(char* path __attribute__((unused)),
 
 int vfs_init()
 {
-#ifdef SLAB
+#ifdef _CONFIG_SLAB
         size_t fsize = sizeof(struct vfile);
         size_t ssize = sizeof(struct vsuper_block);
         size_t csize = CACHE_BLOCK_SIZE;

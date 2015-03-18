@@ -27,7 +27,7 @@
 extern "C" {
 #endif
 
-#ifdef SLAB
+#ifdef _CONFIG_SLAB
 
 #include <mm/cache.h>
 

@@ -6,5 +6,5 @@
 "compiler-flags" : "",
 "linker-flags" : "",
 "archiver-flags" : "",
-"dcompiler-flags" : [{"key" : "keyboard panic", "flags" : "-D KBD_PANIC"}]
+"defines-header" : [{"key" : "keyboard panic", "flags" : "KBD_PANIC"}]
 }

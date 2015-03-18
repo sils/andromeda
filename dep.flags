@@ -43,7 +43,7 @@
         },
         "build_root": "andromeda.build",
         "cas": {
-                "ignore-autoconf": false,
+                "ignore-autoconf": true,
                 "info": "A tiny little easter egg, for Cas van Raan",
                 "mandatory": false
         },

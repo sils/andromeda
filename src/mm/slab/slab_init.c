@@ -245,7 +245,7 @@ static int cache_find_slab_space(struct mm_cache* cache)
 
         if (slab_setup(cache->slabs_empty, cache, no_pages,
                         no_elements) != -E_SUCCESS)
-                panic("Something somewhere went terribly wrong (SLAB)!");
+                panic("Something somewhere went terribly wrong (_CONFIG_SLAB)!");
 
         init_slab_ptr += no_pages;
         return -E_SUCCESS;
@@ -261,7 +261,7 @@ static int slabs_initialised = 0;
 int slab_alloc_init()
 {
         if (slabs_initialised != 0)
-                panic("SLABS ALREADY INITIALISED!");
+                panic("_CONFIG_SLABS ALREADY INITIALISED!");
 #ifdef SLAB_DBG
         debug("Initial slab ptr: %X\n", &initial_slab_space);
 #endif

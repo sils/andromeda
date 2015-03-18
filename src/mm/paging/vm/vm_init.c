@@ -295,7 +295,7 @@ int vm_init()
 
         mm_vm_range_buffer_start = 1;
 
-#ifdef VM_TEST
+#ifdef _CONFIG_VM_TEST
         if (vm_test() != -E_SUCCESS) {
                 panic("Failure in vm_test code!");
         }

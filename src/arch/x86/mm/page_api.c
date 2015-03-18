@@ -41,7 +41,7 @@ struct page_dir* pd = NULL; // Physical address of page directory
 struct page_dir *vpd; // Virtual address of page directory
 void* vpt[1024];  // Virtual addresses of page tables
 
-#ifdef SLAB
+#ifdef _CONFIG_SLAB
 struct mm_cache* x86_pte_pt_cache = NULL;
 struct mm_cache* x86_pte_meta_cache = NULL;
 #endif
@@ -66,7 +66,7 @@ int x86_pte_init()
                 vpt[i] = (void*)virt_pt;
         }
         memset(&pte_cnt, 0, sizeof(pte_cnt));
-#ifdef SLAB
+#ifdef _CONFIG_SLAB
         x86_pte_pt_cache = mm_cache_init("PT_cache",
                         1024*sizeof(struct page_table),
                         1024*sizeof(struct page_table),
@@ -142,7 +142,7 @@ int x86_pte_load_range(struct sys_mmu_range* range)
                  *  If the meta data structure doesn't exist, allocate a new one
                  *  and assume everything can be zero'd out.
                  */
-#ifdef SLAB
+#ifdef _CONFIG_SLAB
                 meta = mm_cache_alloc(x86_pte_meta_cache, 0);
 #else
                 meta = kmalloc(sizeof(*meta));
@@ -237,7 +237,7 @@ int x86_pte_load_range(struct sys_mmu_range* range)
                          * has become redundant. That means the memory can be
                          * cleaned up now.
                          */
-#ifdef SLAB
+#ifdef _CONFIG_SLAB
                         mm_cache_free(x86_pte_pt_cache, &(meta->vpt[idx]));
 #else
                         kfree(&(meta->vpt[idx]));
@@ -327,7 +327,7 @@ skip1:
                  * And since we copied everything over, this table has
                  * become redundant.
                  */
-#ifdef SLAB
+#ifdef _CONFIG_SLAB
                 mm_cache_free(x86_pte_pt_cache, &(meta->vpt[idx]));
 #else
                 kfree(&(meta->vpt));
@@ -356,7 +356,7 @@ int x86_pte_unload_range(struct sys_mmu_range* range)
         struct x86_pte_meta* meta = range->arch_data;
         if (meta == NULL)
         {
-#ifdef SLAB
+#ifdef _CONFIG_SLAB
                 meta = mm_cache_alloc(x86_pte_meta_cache, 0);
 #else
                 meta = kmalloc(sizeof(*meta));
@@ -559,7 +559,7 @@ x86_page_cleanup_range(struct sys_mmu_range* range)
                 {
                         // Unload page table ...
                         meta->pd[idx].present = 0;
-#ifdef SLAB
+#ifdef _CONFIG_SLAB
                         mm_cache_free(x86_pte_pt_cache, meta->vpt[idx]);
 #else
                         kfree(meta->vpt[idx]);
@@ -568,7 +568,7 @@ x86_page_cleanup_range(struct sys_mmu_range* range)
         }
 
 
-#ifdef SLAB
+#ifdef _CONFIG_SLAB
         mm_cache_free(x86_pte_meta_cache, meta);
 #else
         kfree(meta);

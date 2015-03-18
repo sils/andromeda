@@ -4,5 +4,8 @@
 "archive" : false,
 "source-files" : ["memory.c", "test.c"],
 "depend" : [{"path" : "paging/paging.build"}],
-"ddepend" : [{"key" : "slab", "path" : "slab/slab.build"}, {"key" : "slob", "path" : "slob/slob.build"}]
+"ddepend" : [
+	{"key" : "slab", "path" : "slab/slab.build"},
+	{"key" : "slob", "path" : "slob/slob.build"}
+	]
 }

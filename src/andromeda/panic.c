@@ -22,7 +22,7 @@
 void panicDebug(char* msg, char* file, int line)
 {
 	stack_dump((uint32_t*)&msg, 8);
-#ifdef CAS
+#ifdef _CONFIG_CAS
 	// Little easter egg, a request from Cas van Raan
 	printf("Shit's fucked up at line %i in file %s\n%s\nTry again!", line, file, msg);
 #else

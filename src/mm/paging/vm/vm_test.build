@@ -4,7 +4,10 @@
 "archive" : false,
 "source-files" : ["vm_test.c"],
 "compiler-flags" : "",
-"dcompiler-flags" : [{"key" : "vm_test_destructive", "flags" : "-D VM_TEST_DESTRUCTIVE"}],
+"dcompiler-flags" : [],
 "linker-flags" : "",
-"archiver-flags" : ""
+"archiver-flags" : "",
+"defines-header" : [
+	{"key" : "vm_test_destructive", "flags" : "VM_TEST_DESTRUCTIVE"}
+	]
 }

@@ -15,12 +15,12 @@
 	"timer.c"
 	],
 "compiler-flags" : "",
-"dcompiler-flags" : [
-	{"key" : "cas", "flags" : "-D CAS"},
-	{"key" : "syscall-test", "flags" : "-D SC_TEST"},
-	{"key" : "interrupt-test", "flags" : "-D INTERRUPT_TEST"},
-	{"key" : "timer_dbg", "flags" : "-D TIMER_DBG"}
-	],
 "linker-flags" : "",
-"archiver-flags" : ""
+"archiver-flags" : "",
+"defines-header" : [
+	{"key" : "cas", "flags" : "CAS"},
+	{"key" : "syscall-test", "flags" : "SC_TEST"},
+	{"key" : "interrupt-test", "flags" : "INTERRUPT_TEST"},
+	{"key" : "timer_dbg", "flags" : "TIMER_DBG"}
+	]
 }

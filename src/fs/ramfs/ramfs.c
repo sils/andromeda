@@ -33,7 +33,7 @@ ram_fs_init(struct vfile* drive)
                 return NULL;
         memset(super, 0, sizeof(*super));
 
-#ifdef SLAB
+#ifdef _CONFIG_SLAB
         super->dev = (drive == NULL) ? mm_cache_alloc(vsuper_cache, 0) : drive;
 #else
         super->dev = (drive == NULL) ? kmalloc(sizeof(*drive)) : drive;

@@ -222,7 +222,7 @@ int init(unsigned long magic, multiboot_info_t* hdr)
         if (hdr->flags & MULTIBOOT_INFO_ELF_SHDR)
                 core_symbols_init(&hdr->u.elf_sec);
 
-#ifdef SLOB
+#ifdef _CONFIG_SLOB
         debug("Size of the heap: 0x%x\tStarting at: %x\n", HEAPSIZE, heap);
 #endif
 
@@ -266,7 +266,7 @@ int init(unsigned long magic, multiboot_info_t* hdr)
         page_dump();
 #endif
 
-#ifdef TIMER_DBG
+#ifdef _CONFIG_TIMER_DBG
         timer_setup_test(0, X86_8259_INTERRUPT_BASE);
 #endif
         core_loop();

@@ -21,7 +21,7 @@
 #include <lib/tree.h>
 #include <andromeda/system.h>
 
-#ifdef SLAB
+#ifdef _CONFIG_SLAB
 #include <mm/cache.h>
 static struct mm_cache* avl_root_cache = NULL;
 static struct mm_cache* avl_node_cache = NULL;
@@ -594,7 +594,7 @@ static int avl_new_node(int key, void* data, struct tree_root* root)
 
         /* Create new tree */
         struct tree* t;
-#ifdef SLAB
+#ifdef _CONFIG_SLAB
         if (root->flags & TREE_EARLY_ALLOC)
                 t = kmalloc(sizeof(*t));
         else
@@ -614,7 +614,7 @@ static int avl_new_node(int key, void* data, struct tree_root* root)
 
         /* Try to add the node into the tree, or if all else fails, return t */
         if (avl_add(root, t) != -E_SUCCESS) {
-#ifdef SLAB
+#ifdef _CONFIG_SLAB
                 if (root->flags & TREE_EARLY_ALLOC)
                         kfree(t);
                 else
@@ -651,7 +651,7 @@ static int avl_flush_node(struct tree* tree, int (*dtor)(void*, void*),
 
         memset(tree, 0, sizeof(*tree));
 
-#ifdef SLAB
+#ifdef _CONFIG_SLAB
         if (tree->root->flags & TREE_EARLY_ALLOC)
                 kfree(tree);
         else
@@ -676,7 +676,7 @@ int avl_flush(struct tree_root* root, int (dtor)(void*, void*), void* dtor_arg)
         mutex_unlock(&root->mutex);
 
         memset(root, 0, sizeof(*root));
-#ifdef SLAB
+#ifdef _CONFIG_SLAB
         if (root->flags & TREE_EARLY_ALLOC)
                 kfree(root);
         else
@@ -821,7 +821,7 @@ struct tree_root* tree_new_avl()
 {
         /* Create the new tree */
         struct tree_root* t;
-#ifdef SLAB
+#ifdef _CONFIG_SLAB
         if (avl_root_cache == NULL) {
                 mutex_lock(&avl_cache_init_lock);
 

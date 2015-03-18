@@ -34,7 +34,7 @@ static mutex_t vm_dynamic_initialised = mutex_unlocked;
 static uint32_t vm_dynamic_range_ready = 0;
 int mm_vm_range_buffer_start = 0;
 
-#ifdef SLAB
+#ifdef _CONFIG_SLAB
 static struct mm_cache* vm_range_cache = NULL;
 #endif
 
@@ -192,7 +192,7 @@ int vm_range_free(struct vm_range_descriptor* descriptor)
          * We haven't been able to add this to the buffer, so let's free up
          * some space!
          */
-#ifdef SLAB
+#ifdef _CONFIG_SLAB
         mm_cache_free(vm_range_cache, descriptor);
 #else
         kfree(descriptor);
@@ -236,7 +236,7 @@ static int vm_range_update_dynamic()
                         continue;
 
                 /* Allocate the new node */
-#ifdef SLAB
+#ifdef _CONFIG_SLAB
                 desc = mm_cache_alloc(vm_range_cache, CACHE_ALLOC_NO_UPDATE);
 #else
                 desc = kmalloc(sizeof(*desc));
@@ -273,7 +273,7 @@ static int vm_range_alloc_dynamic_init()
         /*
          * Prepare the memory allocator if necessary.
          */
-#ifdef SLAB
+#ifdef _CONFIG_SLAB
         vm_range_cache = mm_cache_init(
                         "vm_range_cache",
                         sizeof(struct vm_range_descriptor),
@@ -295,7 +295,7 @@ static int vm_range_alloc_dynamic_init()
         for (; i < MAX_CACHED_DESCRIPTORS; i++) {
                 struct vm_range_descriptor* desc;
                 /* Allocate the descriptor */
-#ifdef SLAB
+#ifdef _CONFIG_SLAB
                 desc = mm_cache_alloc(vm_range_cache, CACHE_ALLOC_NO_UPDATE);
 #else
                 desc = kmalloc(sizeof(*desc));

@@ -432,7 +432,7 @@ static int vm_test_awkward()
         return ret;
 }
 
-#ifdef VM_TEST_DESTRUCTIVE
+#ifdef _CONFIG_VM_TEST_DESTRUCTIVE
 int vm_test_error()
 {
         char* test = SEG_BASE_SIMPLE;
@@ -470,7 +470,7 @@ int vm_test()
         if (ret != -E_SUCCESS)
                 return ret;
 
-#ifdef VM_TEST_DESTRUCTIVE
+#ifdef _CONFIG_VM_TEST_DESTRUCTIVE
         debug("vm_test6\n");
         if (vm_test_error())
         {

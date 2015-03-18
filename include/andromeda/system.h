@@ -19,6 +19,7 @@
 #ifndef __KERN_SYSTEM_H
 #define __KERN_SYSTEM_H
 
+#include <global.h>
 #include <lib/tree.h>
 #include <fs/vfs.h>
 #include <types.h>
@@ -28,7 +29,7 @@
 #endif
 
 #include <mm/memory.h>
-#ifdef SLAB
+#ifdef _CONFIG_SLAB
 #include <mm/cache.h>
 #else
 #include <mm/heap.h>
@@ -394,7 +395,7 @@ int32_t interrupt_deregister(uint16_t interrupt_no, int32_t interrupt_id);
 int do_interrupt(uint16_t interrupt_no, uint64_t r1, uint64_t r2, uint64_t r3,
                 uint64_t r4);
 
-#ifdef INTERRUPT_TEST
+#ifdef _CONFIG_INTERRUPT_TEST
 int interrupt_test(int interrupt_no);
 #endif
 
@@ -402,7 +403,7 @@ int cpu_timer_init(int cpuid, time_t freq, int16_t irq_no);
 int andromeda_timer_init(time_t freq, int16_t irq_no);
 struct sys_timer* get_global_timer(int16_t irq_no);
 struct sys_timer* get_cpu_timer(int16_t cpu);
-#ifdef TIMER_DBG
+#ifdef _CONFIG_TIMER_DBG
 int timer_setup_test(int16_t cpuid, int16_t irq_no);
 #endif
 

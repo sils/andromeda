@@ -23,6 +23,7 @@
 #ifndef __STDIO_H
 #define __STDIO_H
 
+#include <global.h>
 #include <stdlib.h>
 #include <thread.h>
 #include <fs/vfs.h>

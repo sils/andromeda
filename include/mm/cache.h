@@ -28,7 +28,7 @@
 extern "C" {
 #endif
 
-#ifdef SLAB
+#ifdef _CONFIG_SLAB
 
 /**
  * \defgroup slab

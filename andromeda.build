@@ -10,13 +10,10 @@
 "compiler-flags" : "-c -std=gnu89 -nostdlib -fno-builtin -nostdinc -fno-stack-protector -ffreestanding -pipe -Wall -Wextra -Iinclude/",
 "dcompiler-flags" : [
 	{"key" : "X86", "flags" : "-D X86 -D __INTEL -m32 -mtune=native -march=i386"},
-	{"key" : "slab", "flags" : "-D SLAB"},
-	{"key" : "slob", "flags" : "-D SLOB"},
 	{"key" : "Optimize1", "flags" : "-O1"},
 	{"key" : "Optimize2", "flags" : "-O2"},
 	{"key" : "Optimize3", "flags" : "-O3"},
 	{"key" : "OptimizeSize", "flags" : "-Os"},
-	{"key" : "tree test", "flags" : "-D TREE_TEST"},
 	{"key" : "gdb", "flags" : "-ggdb -g"},
 	{"key" : "asm_output (breaks build)", "flags" : "-S" },
 	{"key" : "dbg_statements", "flags" : "-D MSG_DBG"},
@@ -34,5 +31,9 @@
 	{"path" : "src/drivers/drivers.build"}, 
 	{"path" : "src/arch/arch.build"}
 	],
-"defines-header" : []
+"defines-header" : [
+	{"key" : "slab", "flags" : "SLAB"},
+	{"key" : "slob", "flags" : "SLOB"},
+	{"key" : "tree test", "flags" : "TREE_TEST"}
+	]
 }

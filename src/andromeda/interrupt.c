@@ -19,7 +19,7 @@
 #include <andromeda/system.h>
 #include <arch/x86/cpu.h>
 
-#ifdef SLAB
+#ifdef _CONFIG_SLAB
 static struct mm_cache* interrupt_cache;
 #endif
 
@@ -41,7 +41,7 @@ static mutex_t interrupt_lock = mutex_unlocked;
 
 static struct interrupt interrupts[INTERRUPTS];
 
-#ifdef SLAB
+#ifdef _CONFIG_SLAB
 static void interrupt_dtor(void* object,
                 struct mm_cache* cache __attribute__((unused)),
                 uint32_t flags __attribute__((unused)))
@@ -59,7 +59,7 @@ int interrupt_init()
         }
         memset(interrupts, 0, sizeof(interrupts));
 
-#ifdef SLAB
+#ifdef _CONFIG_SLAB
         interrupt_cache = mm_cache_init("slab", sizeof(struct interrupt), 0,
         NULL, interrupt_dtor);
 #endif
@@ -111,7 +111,7 @@ int32_t interrupt_register(uint16_t interrupt_no,
                 goto unlock;
         }
 
-#ifdef SLAB
+#ifdef _CONFIG_SLAB
         prev->next = mm_cache_alloc(interrupt_cache, 0);
 #else
         prev->next = kmalloc(sizeof(*i));
@@ -148,7 +148,7 @@ int32_t interrupt_deregister(uint16_t interrupt_no, int32_t interrupt_id)
                         memset(i, 0, sizeof(*i));
                 } else {
                         memcpy(i, next, sizeof(*i));
-#ifdef SLAB
+#ifdef _CONFIG_SLAB
                         mm_cache_free(interrupt_cache, next);
 #else
                         kfree(next);
@@ -162,7 +162,7 @@ int32_t interrupt_deregister(uint16_t interrupt_no, int32_t interrupt_id)
         for (; i != NULL ; prev = i, i = i->next) {
                 if (i->id == interrupt_id) {
                         prev->next = i->next;
-#ifdef SLAB
+#ifdef _CONFIG_SLAB
                         mm_cache_free(interrupt_cache, i);
 #else
                         kfree(i);
@@ -210,7 +210,7 @@ int do_interrupt(uint16_t interrupt_no, uint64_t r1, uint64_t r2, uint64_t r3,
         return -E_SUCCESS;
 }
 
-#ifdef INTERRUPT_TEST
+#ifdef _CONFIG_INTERRUPT_TEST
 
 static uint16_t test_interrupt_no;
 static uint16_t test_interrupt_id;

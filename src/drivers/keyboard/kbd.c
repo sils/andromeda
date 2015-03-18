@@ -233,7 +233,7 @@ void kb_handle(uint8_t c)
 		{
 			reboot();
 		}
-#ifdef KBD_PANIC
+#ifdef _CONFIG_KBD_PANIC
 		if (keycodes[c].code == 0x62)
 		        panic("Keyboard panic!");
 #endif

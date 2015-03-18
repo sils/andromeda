@@ -6,5 +6,9 @@
 "compiler-flags" : "",
 "linker-flags" : "",
 "archiver-flags" : "",
-"depend" : [{"path" : "core/core.build"}, {"path" : "eth/eth.build"}, {"path" : "ip/ip.build"}]
+"depend" : [
+	{"path" : "core/core.build"},
+	{"path" : "eth/eth.build"},
+	{"path" : "ip/ip.build"}
+	]
 }

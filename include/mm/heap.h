@@ -39,7 +39,7 @@ struct memNode
 };
 typedef struct memNode memory_node_t;
 
-#ifdef SLOB
+#ifdef _CONFIG_SLOB
 void* alloc(size_t, uint16_t);
 void* nalloc(size_t);
 void free(void*, size_t);

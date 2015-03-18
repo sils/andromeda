@@ -23,7 +23,7 @@
 #include <arch/x86/pte.h>
 #include "page_table.h"
 
-#ifdef SLOB
+#ifdef _CONFIG_SLOB
 #include <mm/heap.h>
 #endif
 
@@ -146,9 +146,9 @@ int x86_pte_set_page(void* virt, void* phys, int cpl)
         pt = vpt[pde];
         if (pt == NULL || !vpd[pde].present)
         {
-#ifdef SLAB
+#ifdef _CONFIG_SLAB
                 pt = mm_cache_alloc(x86_pte_pt_cache, 0);
-#elif defined SLOB
+#elif defined _CONFIG_SLOB
                 pt = alloc(sizeof(*pt)*1024, TRUE);
 #endif
                 if (pt == NULL)

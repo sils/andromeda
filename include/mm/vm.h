@@ -180,11 +180,11 @@ int vm_kernel_fault_write(addr_t fault_addr, int mapped);
 int vm_user_fault_read(addr_t fault_addr, int mapped);
 int vm_kernel_fault_read(addr_t fault_addr, int mapped, addr_t eip);
 
-#ifdef VM_DBG
+#ifdef _CONFIG_VM_TEST
 int vm_dump(struct vm_descriptor*);
 struct vm_segment* vm_find_segment(char*);
 #endif
-#ifdef VM_TEST
+#ifdef _CONFIG_VM_TEST
 int vm_test();
 #endif
 

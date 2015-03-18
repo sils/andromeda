@@ -20,9 +20,9 @@
 #include <andromeda/error.h>
 #include <mm/page_alloc.h>
 #include <types.h>
-#ifdef SLAB
+#ifdef _CONFIG_SLAB
 #include <mm/cache.h>
-#elif defined SLOB
+#elif defined _CONFIG_SLOB
 #include <mm/heap.h>
 #include <mm/memory.h>
 #endif
@@ -38,14 +38,14 @@ int sys_setup_alloc()
         if (hasmm())
                 panic("Memory allocation already initialised!");
 
-#ifdef SLAB
+#ifdef _CONFIG_SLAB
         slab_alloc_init();
         core.mm = kmem_alloc(sizeof(*core.mm), 0);
         if (!hasmm())
                 panic("The slab allocator was not initialised!");
         memset(core.mm, 0, sizeof(*core.mm));
         slab_sys_register();
-#elif defined SLOB
+#elif defined _CONFIG_SLOB
         init_heap();
         complement_heap(&end, HEAPSIZE);
         core.mm = alloc(sizeof(*core.mm), 0);

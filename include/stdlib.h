@@ -31,6 +31,7 @@ extern "C" {
  */
 #define ANDROMEDA_MAGIC 0xc0debabe
 
+#include <global.h>
 #include <text.h>
 #include <io.h>
 #include <types.h>

@@ -61,7 +61,7 @@ void shutdown()
         }
 }
 
-#ifdef TREE_TEST
+#ifdef _CONFIG_TREE_TEST
 /**
  * \fn tree_cleanup_test
  * \brief Tree object destructor
@@ -138,7 +138,7 @@ void core_loop()
 //         init_netif();
 //         init_network();
 
-#ifdef TREE_TEST
+#ifdef _CONFIG_TREE_TEST
         tree_test();
 #endif
 #ifdef DBG
@@ -179,13 +179,13 @@ void core_loop()
 
 //         uint32_t pid = 0;
 
-#ifdef SC_TEST
+#ifdef _CONFIG_SC_TEST
         // Let's go about testing the system calls
         char* str = "Hello world!\n";
         int i = sc_call(SYS_WRITE, 0, 0, (int)str, strlen(str));
         printf ("sc: %X\n", -i);
 #endif
-#ifdef INTERRUPT_TEST
+#ifdef _CONFIG_INTERRUPT_TEST
         interrupt_test(80);
 #endif
         debug ("Entering core loop\n");

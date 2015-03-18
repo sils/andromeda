@@ -22,7 +22,7 @@
 #include <mm/vm.h>
 #include <mm/page_alloc.h>
 #include <types.h>
-#ifdef SLAB
+#ifdef _CONFIG_SLAB
 #include <mm/cache.h>
 #endif
 
@@ -47,7 +47,7 @@ static int detect_loop(struct vm_range_descriptor* head, char* list_name)
 {
         struct vm_range_descriptor* carriage = head;
         int error = -E_SUCCESS;
-#ifdef SLAB
+#ifdef _CONFIG_SLAB
         uint32_t alloc_flags = CACHE_ALLOC_NO_UPDATE | CACHE_ALLOC_NO_VM
         | CACHE_ALLOC_SKIP_LOCKED;
         struct db_t* db = kmem_alloc(sizeof(*db), alloc_flags);
@@ -89,7 +89,7 @@ static int detect_loop(struct vm_range_descriptor* head, char* list_name)
                 }while (dbc->next != NULL );
                 dbc->ptr = carriage;
                 dbc->set = -1;
-#ifdef SLAB
+#ifdef _CONFIG_SLAB
                 dbc->next = kmem_alloc(sizeof(*dbc), alloc_flags);
 #else
                 dbc->next = kmalloc(sizeof(*dbc));
@@ -583,7 +583,7 @@ int vm_unmap(void* virt, struct vm_segment* s)
  * \param name
  * \return The requested segment or 0
  */
-#ifndef VM_DBG
+#ifndef _CONFIG_VM_TEST
 static struct vm_segment*
 #else
 struct vm_segment*

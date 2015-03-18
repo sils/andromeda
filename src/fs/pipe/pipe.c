@@ -27,13 +27,13 @@
  * @{
  */
 
-#ifdef SLAB
+#ifdef _CONFIG_SLAB
 static struct mm_cache* pipe_cache = NULL;
 #endif
 
 static void* pipe_get_new_block(struct pipe* pipe)
 {
-#ifdef SLAB
+#ifdef _CONFIG_SLAB
         if (pipe_cache == NULL) {
                 pipe_cache = mm_cache_init("pipe blocks", BLOCK_SIZE,
                                 sizeof(struct pipe_data_block), NULL, NULL);
@@ -47,7 +47,7 @@ static void* pipe_get_new_block(struct pipe* pipe)
                 return NULL ;
         }
 
-#ifdef SLAB
+#ifdef _CONFIG_SLAB
         if (pipe->block_size == BLOCK_SIZE) {
                 return mm_cache_alloc(pipe_cache, 0);
         } else {
@@ -64,7 +64,7 @@ static int pipe_cleanup_block(struct pipe* pipe, void* block)
                 return -E_NULL_PTR;
 
         int ret = -E_SUCCESS;
-#ifdef SLAB
+#ifdef _CONFIG_SLAB
         if (pipe->block_size != BLOCK_SIZE)
                 kfree(block);
         else

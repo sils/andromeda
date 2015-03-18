@@ -21,7 +21,7 @@
 #include <mm/paging.h>
 #include <mm/heap.h>
 
-#ifndef SLAB
+#ifndef _CONFIG_SLAB
 #define BASE_HEAP_SIZE 0x400000
 
 extern int initial_slab_space;

@@ -18,6 +18,8 @@
 #ifndef __TYPES_H
 #define __TYPES_H
 
+#include <global.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
