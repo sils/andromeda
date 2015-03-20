@@ -23,6 +23,7 @@
 #include <lib/tree.h>
 #include <thread.h>
 #include <fs/pipe.h>
+#include <fs/path.h>
 
 #ifdef __cplusplus
 extern "C"

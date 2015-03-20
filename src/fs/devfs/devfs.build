@@ -1,0 +1,9 @@
+{
+"name" : "fs_devfs",
+"link" : false,
+"archive" : false,
+"source-files" : ["devfs.c"],
+"compiler-flags" : "",
+"linker-flags" : "",
+"archiver-flags" : ""
+}

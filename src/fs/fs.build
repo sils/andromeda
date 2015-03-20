@@ -6,5 +6,10 @@
 "compiler-flags" : "",
 "linker-flags" : "",
 "archiver-flags" : "",
-"depend" : [{"path" : "pipe/pipe.build"}, {"path" : "procfs/procfs.build"}, {"path" : "ramfs/ramfs.build"}]
+"depend" : [
+	{"path" : "pipe/pipe.build"},
+	{"path" : "procfs/procfs.build"},
+	{"path" : "ramfs/ramfs.build"},
+	{"path" : "devfs/devfs.build"}
+	]
 }
