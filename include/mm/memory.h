@@ -30,7 +30,7 @@ extern "C" {
 void paging();
 void memset(void*, int, size_t);
 void memcpy(void*, void*, size_t);
-int memcmp(void*, void*, size_t);
+int memcmp(const void*, const void*, size_t);
 #ifdef SLOB
 int init_heap();
 int complement_heap(void*, size_t);
