@@ -80,6 +80,7 @@ struct tree_root {
 
 struct tree_root* tree_new_avl();
 struct tree_root* tree_new_avl_early();
+struct tree_root* tree_new_string_avl();
 
 /**
  * @} \file

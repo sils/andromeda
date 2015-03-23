@@ -20,149 +20,23 @@
 #include <andromeda/system.h>
 #include <andromeda/drivers.h>
 #include <types.h>
-
-#define DEVFS_DIRNODE_SIZE 255
-#define DEVFS_NODE_DIRECTORY 0
-#define DEVFS_NODE_DEVICE 1
-
-struct devfs_device_node;
-
-struct devfs_device_directory {
-        struct devfs_device_directory* next;
-        struct devfs_device_node* devices[DEVFS_DIRNODE_SIZE];
-};
+#include <lib/tree.h>
+#include <fs/path.h>
 
 struct devfs_device_node {
         char name[FS_MAX_NAMELEN];
         union {
                 struct device* device;
-                struct devfs_device_directory* directory;
+                struct tree_root* directory;
         };
-        int node_type;
+        enum {
+                DEVFS_NODE_DIRECTORY, DEVFS_NODE_DEVICE
+        } node_type;
 };
 
 struct devfs_device_node devfs_root;
 static int devfs_initialised = 0;
 static mutex_t devfs_lock = mutex_unlocked;
-
-static int devfs_put_dir_entry(struct devfs_device_node* directory,
-                struct devfs_device_node* file)
-{
-        /**
-         * \warning This function doesn't check if the file already exists,
-         * beware of that!
-         */
-
-        /* Check parameters */
-        if (directory == NULL || file == NULL) {
-                return -E_NULL_PTR;
-        }
-
-        /* Make sure we're working with a directory */
-        if (directory->node_type != DEVFS_NODE_DIRECTORY) {
-                return -E_INVALID_ARG;
-        }
-
-        /* Set up the loop paramters */
-        struct devfs_device_directory* dir = directory->directory;
-        struct devfs_device_directory* last = dir;
-        /* If NULL, return */
-        if (dir == NULL) {
-                return -E_NULL_PTR;
-        }
-
-        /* While not at end of tables */
-        while (dir != NULL ) {
-                int idx = 0;
-                for (; idx < DEVFS_DIRNODE_SIZE; idx++) {
-                        /* If this node is empty */
-                        if (dir->devices[idx] == NULL) {
-                                /* Put the file in place */
-                                dir->devices[idx] = file;
-                                return -E_SUCCESS;
-                        }
-                        /* else continue */
-                }
-
-                last = dir;
-                dir = dir->next;
-        }
-
-        /* Didn't find an empty spot, and reached the end of the tables
-         * We'll just allocate a new table */
-        last->next = kmalloc(sizeof(*dir));
-        if (last->next == NULL) {
-                return -E_NOMEM;
-        }
-        memset(last->next, 0, sizeof(*dir));
-        /* And hook it into the list */
-        dir = last->next;
-
-        /* Put the file */
-        dir->devices[0] = file;
-
-        /* And return */
-        return -E_SUCCESS;
-}
-
-static struct devfs_device_node* devfs_get_dir_entry(
-                struct devfs_device_node* dir, struct path_directory_node* node)
-{
-        /* Verify arguments */
-        if (dir == NULL || node == NULL) {
-                return NULL ;
-        }
-
-        /* Make sure we're looking through a directory */
-        if (dir->node_type != DEVFS_NODE_DIRECTORY) {
-                return NULL ;
-        }
-
-        /* Determine the file name length */
-        size_t node_len = strlen(node->name);
-        if (node_len >= FS_MAX_NAMELEN) {
-                return NULL ;
-        }
-
-        /* get the directory structure (Allocate if non-existant) */
-        struct devfs_device_directory* directory = dir->directory;
-        if (directory == NULL) {
-                directory = kmalloc(sizeof(*directory));
-                if (directory == NULL) {
-                        return NULL ;
-                }
-                memset(directory, 0, sizeof(*directory));
-                dir->directory = directory;
-        }
-
-        /* Loop through the list of directories
-         * (Can be done quicker if tree is used, requires string compare enabled
-         * tree though)
-         */
-        while (directory != NULL ) {
-                /* While not at the end of the directory node */
-                int idx = 0;
-                for (; idx < DEVFS_DIRNODE_SIZE; idx++) {
-                        /* If file name lenthts don't match, continue */
-                        char* ent_name = directory->devices[idx]->name;
-                        if (strlen(ent_name) != node_len) {
-                                continue;
-                        }
-
-                        /* Names do match, is this our victim? */
-                        int cmp = memcmp(node->name, ent_name, node_len);
-                        if (cmp == 0) {
-                                /* Looks like it is, return our victim */
-                                return directory->devices[idx];
-                        }
-                }
-                /* Haven't found the victim yet, keep on looking in the
-                 * next table*/
-                directory = directory->next;
-        }
-
-        return NULL ;
-}
 
 static int fs_devfs_open(struct vfile* this, char* path, size_t strlen)
 {
@@ -184,6 +58,24 @@ static size_t fs_devfs_read(struct vfile* file, char* buf, size_t start,
                 size_t len)
 {
         return 0;
+}
+
+static struct devfs_device_node* devfs_make_directory(char* name)
+{
+        struct devfs_device_node* node = kmalloc(sizeof(*node));
+        if (node == NULL) {
+                return NULL;
+        }
+
+        node->node_type = DEVFS_NODE_DIRECTORY;
+        node->directory = tree_new_string_avl();
+        if (node->directory == NULL) {
+                kfree_s(node, sizeof(*node));
+                return NULL;
+        }
+        memcpy(node->name, name, FS_MAX_NAMELEN);
+
+        return node;
 }
 
 int fs_devfs_register(char* path, struct device* device)
@@ -212,64 +104,46 @@ int fs_devfs_register(char* path, struct device* device)
         struct path_directory_node* p = nodes;
 
         struct devfs_device_node* dev = &devfs_root;
+        struct devfs_device_node* next;
         for (; p != NULL ; p = p->next) {
-                if (dev == NULL) {
+                if (dev->node_type != DEVFS_NODE_DIRECTORY) {
+                        /* Went into node that is not a directory ... error */
                         success = -E_CORRUPT;
                         break;
                 }
-                if (p->next == NULL) {
-                        /* Add device here */
-                        if (devfs_get_dir_entry(dev, p) != NULL) {
-                                /* But not if it already exists */
-                                success = -E_ALREADY_INITIALISED;
+                if (dev->directory == NULL) {
+                        dev->directory = tree_new_string_avl();
+                        if (dev->directory == NULL) {
+                                /* Out of memory! Return */
+                                success = -E_NOMEM;
                                 break;
                         }
-                        if (devfs_put_dir_entry(dev, d) != -E_SUCCESS) {
-                                success = -E_GENERIC;
-                                break;
-                        } else {
-                                success = -E_SUCCESS;
-                                break;
-                        }
-
-                } else if (dev->node_type == DEVFS_NODE_DIRECTORY) {
-                        /*
-                         * Node is directory, use this to move on to the next
-                         * node, until we can add the device file
-                         */
-                        struct devfs_device_node* tmp;
-                        tmp = devfs_get_dir_entry(dev, p);
-                        if (tmp == NULL) {
-                                tmp = kmalloc(sizeof(*tmp));
-                                if (tmp == NULL) {
-                                        success = -E_NOMEM;
-                                        break;
-                                }
-                                memset(tmp, 0, sizeof(*tmp));
-                                memcpy(tmp->name, p->name, FS_MAX_NAMELEN);
-                                tmp->node_type = DEVFS_NODE_DIRECTORY;
-                                tmp->directory = kmalloc(
-                                                sizeof(*tmp->directory));
-                                if (tmp->directory == NULL) {
-                                        success = -E_NOMEM;
-                                        kfree_s(tmp, sizeof(*tmp));
-                                        break;
-                                }
-                                memset(tmp->directory, 0,
-                                                sizeof(*tmp->directory));
-                                if (devfs_put_dir_entry(dev, tmp) != -E_SUCCESS) {
-                                        success = -E_GENERIC;
-                                        break;
-                                }
-                        }
-                        dev = tmp;
-                } else {
-                        /* Node found is an actual device ...
-                         * something went wrong */
-                        success = -E_INVALID_ARG;
-                        break;
                 }
-
+                /* Find next node */
+                next = dev->directory->string_find(&p->name, dev->directory);
+                if (next != NULL) {
+                        /* Found it, move on! */
+                        dev = next;
+                        continue;
+                }
+                /* Not found */
+                if (p->next == NULL) {
+                        /* We're at the end of the list, let's add the
+                         * device here! */
+                        dev->directory->string_add(p->name, d, dev->directory);
+                        success = -E_SUCCESS;
+                        break;
+                } else {
+                        /* We're not yet at the end of the path, let's create
+                         * the directory required! */
+                        next = devfs_make_directory(p->name);
+                        if (next == NULL) {
+                                success = -E_NOMEM;
+                                break;
+                        }
+                        dev->directory->add(p->name, next, dev->directory);
+                        dev = next;
+                }
         }
 
         /* Return the memory used by the path */
@@ -289,7 +163,7 @@ int fs_devfs_init()
         memset(devfs_root.name, 0, sizeof(devfs_root.name));
         devfs_root.name[0] = '/';
 
-        devfs_root.directory = kmalloc(sizeof(*devfs_root.directory));
+        devfs_root.directory = tree_new_string_avl();
         if (devfs_root.directory == NULL) {
                 panic("Could not initialise the device filesystem");
         }
