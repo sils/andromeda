@@ -45,28 +45,6 @@ struct devfs_device_node devfs_root;
 static int devfs_initialised = 0;
 static mutex_t devfs_lock = mutex_unlocked;
 
-static int fs_devfs_open(struct vfile* this, char* path, size_t strlen)
-{
-        return -E_NOFUNCTION;
-}
-
-static int fs_devfs_close(struct vfile* this)
-{
-        return -E_NOFUNCTION;
-}
-
-static size_t fs_devfs_write(struct vfile* file, char* buf, size_t start,
-                size_t len)
-{
-        return 0;
-}
-
-static size_t fs_devfs_read(struct vfile* file, char* buf, size_t start,
-                size_t len)
-{
-        return 0;
-}
-
 static int devfs_put_dir_entry(struct devfs_device_node* directory,
                 struct devfs_device_node* file)
 {
@@ -184,6 +162,28 @@ static struct devfs_device_node* devfs_get_dir_entry(
         }
 
         return NULL ;
+}
+
+static int fs_devfs_open(struct vfile* this, char* path, size_t strlen)
+{
+        return -E_NOFUNCTION;
+}
+
+static int fs_devfs_close(struct vfile* this)
+{
+        return -E_NOFUNCTION;
+}
+
+static size_t fs_devfs_write(struct vfile* file, char* buf, size_t start,
+                size_t len)
+{
+        return 0;
+}
+
+static size_t fs_devfs_read(struct vfile* file, char* buf, size_t start,
+                size_t len)
+{
+        return 0;
 }
 
 int fs_devfs_register(char* path, struct device* device)
