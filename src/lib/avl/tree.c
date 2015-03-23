@@ -88,17 +88,26 @@ static int avl_rotate_right(struct tree* tree)
         tree->left = left->right;
         left->right = tree;
         tree->parent = left;
-        if (tree->left != NULL)
+        if (tree->left != NULL) {
                 tree->left->parent = tree;
+        }
 
         /* Update the parents on the new status */
-        if (parent == NULL)
+        if (parent == NULL) {
                 tree->root->tree = left;
-        else {
-                if (tree->key < parent->key)
+        } else {
+                int diff = 0;
+                if (tree->root->key_type == integer) {
+                        diff = (tree->int_key < parent->int_key) ? -1 : 0;
+                } else {
+                        diff = memcmp(&tree->str_key, &parent->str_key,
+                        TREE_STR_KEY_LEN);
+                }
+                if (diff) {
                         parent->left = left;
-                else
+                } else {
                         parent->right = left;
+                }
                 avl_depth(parent);
         }
 
@@ -131,13 +140,22 @@ static int avl_rotate_left(struct tree* tree)
                 tree->right->parent = tree;
 
         /* Update the parents on the new situation */
-        if (parent == NULL)
+        if (parent == NULL) {
                 tree->root->tree = right;
-        else {
-                if (tree->key < parent->key)
+        } else {
+                int diff = 0;
+                if (tree->root->key_type == integer) {
+                        diff = (tree->int_key < parent->int_key) ? -1 : 0;
+                } else {
+                        diff = memcmp(&tree->str_key, parent->str_key,
+                        TREE_STR_KEY_LEN);
+                }
+
+                if (diff) {
                         parent->left = right;
-                else
+                } else {
                         parent->right = right;
+                }
         }
 
         /* Reconsider the depth */
@@ -297,7 +315,14 @@ static int avl_add_node(struct tree* parent, struct tree* t)
                 return -E_NULL_PTR;
 
         /* Does the node go on the left */
-        if (t->key < parent->key) {
+        int diff = 0;
+        if (parent->root->key_type == integer) {
+                diff = (t->int_key < parent->int_key) ? -1 : 1;
+        } else {
+                diff = memcmp(&t->str_key, &parent->str_key, TREE_STR_KEY_LEN);
+        }
+
+        if (diff == -1) {
                 /* Try to delegate downwards */
                 int s = avl_add_node(parent->left, t);
                 switch (s) {
@@ -320,7 +345,7 @@ static int avl_add_node(struct tree* parent, struct tree* t)
                 }
         }
         /* Or does the node go on the right */
-        else if (t->key > parent->key) {
+        else if (diff == 1) {
                 /* Try to delegate downwards */
                 int s = avl_add_node(parent->right, t);
                 switch (s) {
@@ -361,37 +386,74 @@ static int avl_add_node(struct tree* parent, struct tree* t)
  */
 static struct tree* avl_find_node(int key, struct tree* tree)
 {
-        if (tree == NULL)
+        if (tree == NULL) {
                 return NULL ;
+        }
+
+        int diff = 0;
+        if (tree->root->key_type == integer) {
+                if (key < tree->int_key) {
+                        diff = -1;
+                } else if (key > tree->int_key) {
+                        diff = 1;
+                }
+        } else {
+                if (key == 0) {
+                        return NULL ;
+                }
+                diff = memcmp((char*) key, tree->str_key, TREE_STR_KEY_LEN);
+        }
 
         /* If the keys match, return this entry */
-        if (tree->key == key)
+        if (diff == 0) {
                 return tree;
+        }
 
         /* If key is smaller, try to find it on the left */
-        if (key < tree->key)
+        if (diff == -1) {
                 return avl_find_node(key, tree->left);
-        else
+        } else {
                 /* else try to find it on the right */
                 return avl_find_node(key, tree->right);
+        }
 }
 
 static struct tree* avl_find_closest_node(int key, struct tree* tree)
 {
-        if (tree == NULL)
+        if (tree == NULL) {
                 return NULL ;
+        }
 
-        if (tree->key == key)
+        int diff = 0;
+
+        if (tree->root->key_type == integer) {
+                if (key < tree->int_key) {
+                        diff = -1;
+                } else if (key > tree->int_key) {
+                        diff = 1;
+                }
+
+        } else {
+                if (key == 0) {
+                        return NULL ;
+                }
+                diff = memcmp((char*) key, tree->str_key, TREE_STR_KEY_LEN);
+        }
+
+        if (diff == 0) {
                 return tree;
+        }
 
         struct tree* ret = NULL;
-        if (key < tree->key)
+        if (diff == -1) {
                 ret = avl_find_closest_node(key, tree->left);
-        else
-                ret = avl_find_node(key, tree->right);
+        } else {
+                ret = avl_find_closest_node(key, tree->right);
+        }
 
-        if (ret == NULL)
+        if (ret == NULL) {
                 ret = tree;
+        }
         return ret;
 }
 
@@ -405,16 +467,28 @@ static int avl_delete_node_simple(struct tree* tree)
                 return -E_NULL_PTR;
         }
 
+        int diff = 0;
+        if (tree->root->key_type == integer) {
+                if (tree->int_key < tree->parent->int_key) {
+                        diff = -1;
+                } else if (tree->int_key > tree->parent->int_key) {
+                        diff = 1;
+                }
+        } else {
+                diff = memcmp(tree->str_key, tree->parent->str_key,
+                TREE_STR_KEY_LEN);
+        }
+
         if (tree->ldepth == 0 && tree->rdepth == 0) {
                 /* If neither of the subtrees are present */
-                if (tree->key < tree->parent->key) {
+                if (diff == -1) {
                         tree->parent->left = NULL;
                 } else {
                         tree->parent->right = NULL;
                 }
         } else if (tree->right == NULL && tree->left != NULL) {
                 /* if only left subtree is present */
-                if (tree->key < tree->parent->key) {
+                if (diff == -1) {
                         tree->parent->left = tree->left;
                 } else {
                         tree->parent->right = tree->left;
@@ -422,7 +496,7 @@ static int avl_delete_node_simple(struct tree* tree)
                 tree->left->parent = tree->parent;
         } else if (tree->right != NULL && tree->left == NULL) {
                 /* If only right subtree is present */
-                if (tree->key < tree->parent->key) {
+                if (diff == -1) {
                         tree->parent->left = tree->right;
                 } else {
                         tree->parent->right = tree->right;
@@ -445,14 +519,12 @@ static int avl_delete_node_orphan(struct tree* tree)
                 return -E_CORRUPT;
         }
 
-        if (tree->ldepth == 0 && tree->rdepth == 0 ) {
+        if (tree->ldepth == 0 && tree->rdepth == 0) {
                 tree->root->tree = NULL;
-        }
-        else if (tree->ldepth != 0 && tree->rdepth == 0) {
+        } else if (tree->ldepth != 0 && tree->rdepth == 0) {
                 tree->root->tree = tree->left;
                 tree->left->parent = NULL;
-        }
-        else if (tree->rdepth != 0 && tree->ldepth == 0) {
+        } else if (tree->rdepth != 0 && tree->ldepth == 0) {
                 tree->root->tree = tree->right;
                 tree->right->parent = NULL;
         } else {
@@ -474,8 +546,23 @@ static int avl_delete_node(int key, struct tree* tree)
         }
 
         struct tree* t = tree;
-        if (tree->key != key) {
-                if (key < tree->key) {
+
+        int diff = 0;
+        if (tree->root->key_type == integer) {
+                if (key < tree->int_key) {
+                        diff = -1;
+                } else if (key > tree->int_key) {
+                        diff = 1;
+                }
+        } else {
+                if (key == 0) {
+                        return -E_NULL_PTR;
+                }
+                diff = memcmp((char*) key, tree->str_key, TREE_STR_KEY_LEN);
+        }
+
+        if (diff) {
+                if (diff == -1) {
                         key = avl_delete_node(key, tree->left);
                         avl_depth(tree);
                         return key;
@@ -521,7 +608,7 @@ static int avl_delete_node(int key, struct tree* tree)
 
                 if (successor->parent == NULL) {
                         successor->root->tree = successor;
-                } else if (successor->key < successor->parent->key) {
+                } else if (diff == -1) {
                         successor->parent->left = successor;
                 } else {
                         successor->parent->right = successor;
@@ -569,7 +656,7 @@ static int avl_add(struct tree_root* root, struct tree* tree)
                 return -E_NULL_PTR;
 
         int ret = 0;
-//tree->root = root;
+        //tree->root = root;
         mutex_lock(&root->mutex);
         /* Add the node into the tree if there already is one */
         if (root->tree != NULL) {
@@ -597,36 +684,71 @@ static int avl_new_node(int key, void* data, struct tree_root* root)
         /* Create new tree */
         struct tree* t;
 #ifdef SLAB
-        if (root->flags & TREE_EARLY_ALLOC)
+        if (root->flags & TREE_EARLY_ALLOC) {
                 t = kmalloc(sizeof(*t));
-        else
+        } else {
                 t = mm_cache_alloc(avl_node_cache, 0);
+        }
 #else
         t = kmalloc(sizeof(*t));
 #endif
 
-        if (t == NULL)
+        if (t == NULL) {
                 return -E_NOMEM;
+        }
         memset(t, 0, sizeof(*t));
 
         /* Set up the data */
-        t->key = key;
+        if (root->key_type == integer) {
+                t->int_key = key;
+        } else {
+                char* str_key = (char*) key;
+                memset(t->str_key, 0, TREE_STR_KEY_LEN);
+                int len = strlen(str_key);
+                if (len > TREE_STR_KEY_LEN) {
+                        len = TREE_STR_KEY_LEN;
+                }
+                memcpy(t->str_key, str_key, len);
+        }
         t->data = data;
         t->root = root;
 
         /* Try to add the node into the tree, or if all else fails, return t */
         if (avl_add(root, t) != -E_SUCCESS) {
 #ifdef SLAB
-                if (root->flags & TREE_EARLY_ALLOC)
+                if (root->flags & TREE_EARLY_ALLOC) {
                         kfree(t);
-                else
+                } else {
                         mm_cache_free(avl_node_cache, t);
+                }
 #else
                 kfree(t);
 #endif
                 return -E_GENERIC;
         }
         return -E_SUCCESS;
+}
+
+static int avl_new_string_node_dummy(int key __attribute__((unused)),
+                void* data __attribute__((unused)),
+                struct tree_root* root __attribute__((unused)))
+{
+        return -E_NOFUNCTION;
+}
+
+static int avl_new_node_dummy(char* key __attribute__((unused)),
+                void* data __attribute__((unused)),
+                struct tree_root* root __attribute__((unused)))
+{
+        return -E_NOFUNCTION;
+}
+
+static int avl_new_string_node(char* key, void* data, struct tree_root* root)
+{
+        if (root->key_type != string) {
+                return -E_INVALID_ARG;
+        }
+        return avl_new_node((int) key, data, root);
 }
 
 /**
@@ -692,34 +814,40 @@ int avl_flush(struct tree_root* root, int (dtor)(void*, void*), void* dtor_arg)
 static void* avl_find_smaller(int key, struct tree_root* t)
 {
         if (t == NULL) {
-                return NULL;
+                return NULL ;
         }
 
         mutex_lock(&t->mutex);
         struct tree* ret = avl_find_closest_node(key, t->tree);
-        if (ret != NULL && ret->key < key) {
+        if (ret != NULL && ret->int_key < key) {
                 ret = ret->prev;
         }
         mutex_unlock(&t->mutex);
 
-        return (ret == NULL) ? NULL : ret->data;
+        return (ret == NULL ) ? NULL : ret->data;
 }
 
 static void* avl_find_larger(int key, struct tree_root* t)
 {
         if (t == NULL) {
-                return NULL;
+                return NULL ;
         }
 
         mutex_lock(&t->mutex);
         struct tree* ret = avl_find_closest_node(key, t->tree);
 
-        if (ret != NULL && ret->key > key) {
+        if (ret != NULL && ret->int_key > key) {
                 ret = ret->next;
         }
         mutex_unlock(&t->mutex);
 
-        return (ret == NULL) ? NULL : ret->data;
+        return (ret == NULL ) ? NULL : ret->data;
+}
+
+static void* avl_find_direction_dummy(int key __attribute__((unused)),
+                struct tree_root* t __attribute__((unused)))
+{
+        return NULL ;
 }
 
 /**
@@ -729,13 +857,32 @@ static void* avl_find_larger(int key, struct tree_root* t)
 static void* avl_find(int key, struct tree_root* t)
 {
         if (t == NULL) {
-                return NULL;
+                return NULL ;
         }
 
         mutex_lock(&t->mutex);
         struct tree* ret = avl_find_node(key, t->tree);
         mutex_unlock(&t->mutex);
         return (ret == NULL ) ? NULL : ret->data;
+}
+
+static void* avl_string_find_dummy(int key __attribute__((unused)),
+                struct tree_root* t __attribute__((unused)))
+{
+        return NULL ;
+}
+static void* avl_find_dummy(char* key __attribute__((unused)),
+                struct tree_root* t __attribute__((unused)))
+{
+        return NULL ;
+}
+
+static void* avl_string_find(char* key, struct tree_root* t)
+{
+        if (t->key_type != string) {
+                return NULL ;
+        }
+        return avl_find((int) key, t);
 }
 
 /**
@@ -756,6 +903,12 @@ static struct tree* avl_find_close(int key, struct tree_root* t)
         return ret;
 }
 
+static struct tree* avl_find_close_dummy(int key __attribute__((unused)),
+                struct tree_root* t __attribute__((unused)))
+{
+        return NULL ;
+}
+
 /**
  * \fn avl_delete
  * \brief Delete a node from the tree
@@ -772,20 +925,60 @@ static int avl_delete(int key, struct tree_root* root)
         return ret;
 }
 
+static int avl_delete_dummy(char* key __attribute__((unused)),
+                struct tree_root* root __attribute__((unused)))
+{
+        return -E_NOFUNCTION;
+}
+
+static int avl_string_delete_dummy(int key __attribute__((unused)),
+                struct tree_root* root __attribute__((unused)))
+{
+        return -E_NOFUNCTION;
+}
+
+static int avl_string_delete(char* key, struct tree_root* root)
+{
+        if (root->key_type != string) {
+                return -E_INVALID_ARG;
+        }
+        return avl_delete((int) key, root);
+}
+
 static void tree_avl_init(struct tree_root* t)
 {
         memset(t, 0, sizeof(*t));
 
         /* Set up the function pointers */
         t->add = avl_new_node;
+        t->string_add = avl_new_node_dummy;
         t->find = avl_find;
+        t->string_find = avl_find_dummy;
         t->find_close = avl_find_close;
         t->find_smaller = avl_find_smaller;
         t->find_larger = avl_find_larger;
         t->delete = avl_delete;
+        t->string_delete = avl_delete_dummy;
         t->purge = avl_flush;
+        t->key_type = integer;
 
         t->mutex = mutex_unlocked;
+}
+
+static void tree_avl_string_init(struct tree_root* t)
+{
+        t->add = avl_new_string_node_dummy;
+        t->string_add = avl_new_string_node;
+        t->find = avl_string_find_dummy;
+        t->string_find = avl_string_find;
+        t->find_close = avl_find_close_dummy;
+        t->delete = avl_string_delete_dummy;
+        t->string_delete = avl_string_delete;
+
+        t->find_larger = avl_find_direction_dummy;
+        t->find_smaller = avl_find_direction_dummy;
+
+        t->key_type = string;
 }
 
 /**
@@ -806,7 +999,8 @@ struct tree_root* tree_new_avl()
                                         NULL);
                 if (avl_node_cache == NULL)
                         avl_node_cache = mm_cache_init("avl nodes",
-                                        sizeof(struct tree), 0, NULL, NULL);
+                                        sizeof(struct tree), 0,
+                                        NULL, NULL);
 
                 mutex_unlock(&avl_cache_init_lock);
         }
@@ -814,10 +1008,22 @@ struct tree_root* tree_new_avl()
 #else
         t = kmalloc(sizeof(*t));
 #endif
-        if (t == NULL)
+        if (t == NULL) {
                 return NULL ;
+        }
 
         tree_avl_init(t);
+
+        return t;
+}
+
+struct tree_root* tree_new_string_avl()
+{
+        struct tree_root* t = tree_new_avl();
+        if (t == NULL) {
+                return NULL ;
+        }
+        tree_avl_string_init(t);
 
         return t;
 }
@@ -825,8 +1031,9 @@ struct tree_root* tree_new_avl()
 struct tree_root* tree_new_avl_early()
 {
         struct tree_root* t = kmalloc(sizeof(*t));
-        if (t == NULL)
+        if (t == NULL) {
                 return NULL ;
+        }
 
         tree_avl_init(t);
         t->flags |= TREE_EARLY_ALLOC;

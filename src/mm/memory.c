@@ -179,9 +179,9 @@ void memcpy(void *dest, void *src, size_t count)
         return;
 }
 
-int memcmp(const void* s1, const void* s2, size_t len)
+int memcmp(const void* s1, const void *s2, size_t len)
 {
-        volatile size_t idx = 0;
+        size_t idx = 0;
         const char* a = s1;
         const char* b = s2;
 
@@ -196,11 +196,12 @@ int memcmp(const void* s1, const void* s2, size_t len)
         return 0;
 }
 
-size_t strlen(char* string)
+size_t strlen(const char* string)
 {
-        volatile int i = 0;
-        for (; *(string + i) != '\0'; i++)
-                ;
+        size_t i = 0;
+        for (; string[i] != '\0'; i++) {
+        }
+
         return i;
 }
 

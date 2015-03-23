@@ -36,7 +36,7 @@ int init_heap();
 int complement_heap(void*, size_t);
 #endif
 
-size_t strlen(char* string);
+size_t strlen(const char* string);
 
 #ifdef __INTEL
 void setGDT();

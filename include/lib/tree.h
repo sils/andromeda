@@ -32,7 +32,8 @@ extern "C" {
 
 #define AVL_BALANCE(a) (a->ldepth - a->rdepth)
 
-#define TREE_EARLY_ALLOC        (1 << 0)
+#define TREE_EARLY_ALLOC (1 << 0)
+#define TREE_STR_KEY_LEN 0x100
 
 struct tree_root;
 
@@ -48,8 +49,11 @@ struct tree {
         int rdepth;
         int ldepth;
 
-        int key;
         void* data;
+        union {
+                int int_key;
+                char str_key[TREE_STR_KEY_LEN];
+        };
 };
 
 struct tree_root {
@@ -58,15 +62,20 @@ struct tree_root {
 
         unsigned int flags;
 
-        int (*add)(int key, void* data, struct tree_root* root);
-        void* (*find)(int key, struct tree_root* root);
-        struct tree* (*find_close)(int key, struct tree_root* root);
+        int (*add)(int int_key, void* data, struct tree_root* root);
+        int (*string_add)(char* str_key, void* data, struct tree_root* root);
+        void* (*find)(int int_key, struct tree_root* root);
+        void* (*string_find)(char* str_key, struct tree_root* root);
+        struct tree* (*find_close)(int int_key, struct tree_root* root);
         void* (*find_smaller)(int key, struct tree_root* root);
         void* (*find_larger)(int key, struct tree_root* root);
-        int (*delete)(int key, struct tree_root* root);
+        int (*delete)(int int_key, struct tree_root* root);
+        int (*string_delete)(char* str_key, struct tree_root* root);
         int (*purge)(struct tree_root*, int (dtor)(void*,void*), void*);
 
         mutex_t mutex;
+
+        enum {integer, string} key_type;
 };
 
 struct tree_root* tree_new_avl();
