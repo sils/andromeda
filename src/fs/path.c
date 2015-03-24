@@ -20,7 +20,7 @@
 #include <fs/path.h>
 #include <andromeda/system.h>
 
-void clean_path(struct path_directory_node* elements)
+void path_clean(struct path_directory_node* elements)
 {
         struct path_directory_node *carriage = elements;
         for (; carriage != NULL ; carriage = carriage->next) {
@@ -28,7 +28,7 @@ void clean_path(struct path_directory_node* elements)
         }
 }
 
-void add_character(struct path_directory_node* element, char c)
+static void add_character(struct path_directory_node* element, char c)
 {
         if (element->cursor == 0xff)
                 return;
@@ -36,7 +36,7 @@ void add_character(struct path_directory_node* element, char c)
         element->cursor++;
 }
 
-struct path_directory_node* parse_path(char* path)
+struct path_directory_node* path_parse(char* path)
 {
         if (path == NULL) {
                 return NULL ;
@@ -67,7 +67,7 @@ struct path_directory_node* parse_path(char* path)
                         if (!escaped) {
                                 carriage->next = kmalloc(sizeof(*carriage));
                                 if (carriage->next == NULL) {
-                                        clean_path(list);
+                                        path_clean(list);
                                         return NULL ;
                                 }
                                 memset(carriage->next, 0, sizeof(*carriage));
@@ -81,7 +81,7 @@ struct path_directory_node* parse_path(char* path)
                         escaped = FALSE;
                 }
                 if (name_len > FS_MAX_NAMELEN) {
-                        clean_path(list);
+                        path_clean(list);
                         return NULL ;
                 }
         }

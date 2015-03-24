@@ -31,8 +31,8 @@ struct path_directory_node {
         uint8_t cursor;
 };
 
-void clean_path(struct path_directory_node* elements);
-struct path_directory_node *parse_path(char* path);
+void path_clean(struct path_directory_node* elements);
+struct path_directory_node *path_parse(char* path);
 
 #ifdef __cplusplus
 }

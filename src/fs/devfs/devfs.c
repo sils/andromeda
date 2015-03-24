@@ -38,9 +38,51 @@ struct devfs_device_node devfs_root;
 static int devfs_initialised = 0;
 static mutex_t devfs_lock = mutex_unlocked;
 
-static int fs_devfs_open(struct vfile* this, char* path, size_t strlen)
+static struct vfile* fs_devfs_open(char* path, size_t strlen)
 {
-        return -E_NOFUNCTION;
+        if (path == NULL || strlen == 0) {
+                return NULL ;
+        }
+
+        struct vfile* file = NULL;
+
+        struct path_directory_node* path_nodes = path_parse(path);
+        if (path_nodes == NULL) {
+                return NULL ;
+        }
+
+        struct path_directory_node* node = path_nodes;
+        struct devfs_device_node* device = &devfs_root;
+        mutex_lock(&devfs_lock);
+
+        while (file == NULL && node != NULL && device != NULL ) {
+                if (node->next == NULL) {
+                        /* At end of path */
+                }
+
+                if (device->node_type != DEVFS_NODE_DIRECTORY) {
+                        if (device->device == NULL || device->device->open
+                                        == NULL) {
+                                device = NULL;
+                                continue;
+                        }
+                        file = device->device->open(device->device);
+                        break;
+                }
+                if (device->directory == NULL) {
+                        device = NULL;
+                        continue;
+                }
+                device = device->directory->string_find(node->name,
+                                device->directory);
+                node = node->next;
+        }
+
+        mutex_unlock(&devfs_lock);
+
+        path_clean(path_nodes);
+
+        return file;
 }
 
 static int fs_devfs_close(struct vfile* this)
@@ -48,30 +90,18 @@ static int fs_devfs_close(struct vfile* this)
         return -E_NOFUNCTION;
 }
 
-static size_t fs_devfs_write(struct vfile* file, char* buf, size_t start,
-                size_t len)
-{
-        return 0;
-}
-
-static size_t fs_devfs_read(struct vfile* file, char* buf, size_t start,
-                size_t len)
-{
-        return 0;
-}
-
 static struct devfs_device_node* devfs_make_directory(char* name)
 {
         struct devfs_device_node* node = kmalloc(sizeof(*node));
         if (node == NULL) {
-                return NULL;
+                return NULL ;
         }
 
         node->node_type = DEVFS_NODE_DIRECTORY;
         node->directory = tree_new_string_avl();
         if (node->directory == NULL) {
                 kfree_s(node, sizeof(*node));
-                return NULL;
+                return NULL ;
         }
         memcpy(node->name, name, FS_MAX_NAMELEN);
 
@@ -80,7 +110,7 @@ static struct devfs_device_node* devfs_make_directory(char* name)
 
 int fs_devfs_register(char* path, struct device* device)
 {
-        struct path_directory_node* nodes = parse_path(path);
+        struct path_directory_node* nodes = path_parse(path);
 
         int success = -E_SUCCESS;
         if (nodes == NULL) {
@@ -120,7 +150,7 @@ int fs_devfs_register(char* path, struct device* device)
                         }
                 }
                 /* Find next node */
-                next = dev->directory->string_find(&p->name, dev->directory);
+                next = dev->directory->string_find(p->name, dev->directory);
                 if (next != NULL) {
                         /* Found it, move on! */
                         dev = next;
@@ -141,14 +171,14 @@ int fs_devfs_register(char* path, struct device* device)
                                 success = -E_NOMEM;
                                 break;
                         }
-                        dev->directory->add(p->name, next, dev->directory);
+                        dev->directory->string_add(p->name, next, dev->directory);
                         dev = next;
                 }
         }
 
         /* Return the memory used by the path */
         mutex_unlock(&devfs_lock);
-        clean_path(nodes);
+        path_clean(nodes);
         return success;
 }
 
