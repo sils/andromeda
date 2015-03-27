@@ -31,7 +31,7 @@
 #include <arch/x86/paging.h>
 #endif
 
-struct system core = {NULL, NULL, NULL, NULL, NULL, NULL};
+struct system core = { NULL, NULL, NULL, NULL, NULL, NULL };
 
 int sys_setup_alloc()
 {
@@ -50,7 +50,7 @@ int sys_setup_alloc()
         complement_heap(&end, HEAPSIZE);
         core.mm = alloc(sizeof(*core.mm), 0);
         if (!hasmm())
-                panic("The slob allocator failed!");
+        panic("The slob allocator failed!");
         memset(core.mm, 0, sizeof(*core.mm));
         slob_sys_register();
 #endif
@@ -78,10 +78,12 @@ int sys_setup_paging()
 int sys_setup_arch()
 {
         interrupt_init();
-        if (hasarch())
+        if (hasarch()) {
                 return -E_ALREADY_INITIALISED;
-        if (!hasmm())
+        }
+        if (!hasmm()) {
                 return -E_NOT_YET_INITIALISED;
+        }
 
         core.arch = kmalloc(sizeof(*core.arch));
         if (!hasarch())
@@ -89,8 +91,7 @@ int sys_setup_arch()
         memset(core.arch, 0, sizeof(*core.arch));
 
         int i = 0;
-        for (; i < CPU_LIMIT; i++)
-        {
+        for (; i < CPU_LIMIT; i++) {
 #ifdef X86
                 system_x86_cpu_init(i);
 #endif
@@ -125,7 +126,7 @@ int sys_setup_fs()
         if (core.vfs == NULL)
                 panic("Unable to allocate the virtual filesystem data");
 
-        memset (core.vfs, 0, sizeof(*core.vfs));
+        memset(core.vfs, 0, sizeof(*core.vfs));
 
         vfs_init();
 

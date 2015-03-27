@@ -204,10 +204,12 @@ int init(unsigned long magic, multiboot_info_t* hdr)
         if (hdr->flags & MULTIBOOT_INFO_MEMORY) {
                 memsize = hdr->mem_upper;
                 memsize += 1024;
-        } else
+        } else {
                 panic("No memory flags!");
-        if (!(hdr->flags & MULTIBOOT_INFO_MEM_MAP))
+        }
+        if (!(hdr->flags & MULTIBOOT_INFO_MEM_MAP)) {
                 panic("Invalid memory map");
+        }
 
         mmap = (multiboot_memory_map_t*) hdr->mmap_addr;
         /** Build the memory map and allow for allocation */

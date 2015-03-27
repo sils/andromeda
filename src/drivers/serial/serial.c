@@ -250,6 +250,7 @@ static void drv_serial_disconnect(struct serial_port_data* port)
 
         return;
 }
+
 static void drv_serial_connect(struct serial_port_data* port)
 {
         /* Set up interrupt handlers */
@@ -428,6 +429,8 @@ static int drv_serial_init(struct device* this)
         dev_setup_driver(this, drv_serial_io_read, drv_serial_io_write,
                         drv_serial_ioctl);
 
+        fs_devfs_register(this->name, this);
+
         return -E_SUCCESS;
 }
 
@@ -542,7 +545,7 @@ static int dev_serial_init(struct device* parent, uint16_t com_port, char* name)
         return ret;
 }
 
-static char* com_names[] = { "COM0", "COM1", "COM2", "COM3" };
+static char* com_names[] = { "ttyS0", "ttyS1", "ttyS2", "ttyS3" };
 
 int drv_serial_kickstart(struct device* parent)
 {

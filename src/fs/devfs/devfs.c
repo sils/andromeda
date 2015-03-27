@@ -38,7 +38,7 @@ struct devfs_device_node devfs_root;
 static int devfs_initialised = 0;
 static mutex_t devfs_lock = mutex_unlocked;
 
-static struct vfile* fs_devfs_open(char* path, size_t strlen)
+struct vfile* fs_devfs_open(char* path, size_t strlen)
 {
         if (path == NULL || strlen == 0) {
                 return NULL ;
@@ -103,6 +103,7 @@ static struct devfs_device_node* devfs_make_directory(char* name)
                 kfree_s(node, sizeof(*node));
                 return NULL ;
         }
+
         memcpy(node->name, name, FS_MAX_NAMELEN);
 
         return node;
@@ -143,6 +144,7 @@ int fs_devfs_register(char* path, struct device* device)
                 }
                 if (dev->directory == NULL) {
                         dev->directory = tree_new_string_avl();
+                        warning("Resetting the directory pointer!\n");
                         if (dev->directory == NULL) {
                                 /* Out of memory! Return */
                                 success = -E_NOMEM;
@@ -197,7 +199,6 @@ int fs_devfs_init()
         if (devfs_root.directory == NULL) {
                 panic("Could not initialise the device filesystem");
         }
-        memset(devfs_root.directory, 0, sizeof(*devfs_root.directory));
 
-        return -E_NOFUNCTION;
+        return -E_SUCCESS;
 }

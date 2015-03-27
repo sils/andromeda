@@ -183,6 +183,12 @@ struct vmount {
 int vfs_init();
 struct vfile* vfs_create();
 
+struct device;
+
+struct vfile* fs_devfs_open(char* path, size_t strlen);
+int fs_devfs_register(char* path, struct device* device);
+int fs_devfs_init();
+
 #ifdef __cplusplus
 }
 #endif

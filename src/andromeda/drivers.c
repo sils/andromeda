@@ -48,6 +48,8 @@ int dev_detect_cpus(struct device* root)
 
 int dev_root_init()
 {
+        fs_devfs_init();
+
         struct device* root = &dev_root;
         memset(root, 0, sizeof(*root));
         root->driver = kmalloc(sizeof(*root->driver));
