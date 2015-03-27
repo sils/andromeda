@@ -90,8 +90,7 @@ vm_range_alloc_ptr(struct vm_range_buffer* buffer)
         memset(desc, 0, sizeof(*desc));
 
         /* Clear the lock and return blank or the allocated resource */
-cleanup:
-        mutex_unlock(&buffer->get_lock);
+        cleanup: mutex_unlock(&buffer->get_lock);
         return desc;
 }
 
@@ -119,10 +118,8 @@ struct vm_range_descriptor* vm_range_alloc()
  * \param descriptor
  * \return A generic error code
  */
-static int
-vm_range_reset(descriptor, buffer)
-struct vm_range_descriptor* descriptor;
-struct vm_range_buffer* buffer;
+static int vm_range_reset(descriptor, buffer)
+        struct vm_range_descriptor* descriptor;struct vm_range_buffer* buffer;
 {
         int error = -E_SUCCESS;
         if (descriptor == NULL || buffer == NULL)
@@ -148,8 +145,7 @@ struct vm_range_buffer* buffer;
         descriptor->prev = buffer->tail;
         buffer->tail = descriptor;
 
-cleanup:
-        mutex_unlock(&buffer->put_lock);
+        cleanup: mutex_unlock(&buffer->put_lock);
         return error;
 }
 
@@ -167,7 +163,7 @@ int vm_range_free(struct vm_range_descriptor* descriptor)
 
         /* Clear the descriptor */
         int32_t static_alloc = descriptor->static_alloc;
-        memset (descriptor, 0, sizeof(*descriptor));
+        memset(descriptor, 0, sizeof(*descriptor));
 
         /* If allocated from the static pool, return to the static pool */
         int error = -E_SUCCESS;
@@ -214,30 +210,34 @@ static int vm_range_update_dynamic()
          * If the queue is full, return
          */
         int64_t length = semaphore_try_get(&vm_buffer.length);
-        if (length == -1)
+        if (length == -1) {
                 return -E_SUCCESS;
+        }
 
         /*
          * Get the lock, or if someone is already working on this, return success
          */
         int lock = mutex_test(&vm_buffer.put_lock);
-        if (lock == mutex_locked)
+        if (lock == mutex_locked) {
                 return -E_SUCCESS;
+        }
 
         struct vm_range_descriptor* desc = NULL;
 
         do {
                 length = semaphore_try_inc(&vm_buffer.length);
                 /* If queue is full, we're done */
-                if (length == -E_OUT_OF_RESOURCES)
+                if (length == -E_OUT_OF_RESOURCES) {
                         break;
+                }
                 /* If counter is locked, try again */
-                if (length == -E_LOCKED)
+                if (length == -E_LOCKED) {
                         continue;
+                }
 
                 /* Allocate the new node */
 #ifdef SLAB
-                desc = mm_cache_alloc(vm_range_cache, CACHE_ALLOC_NO_UPDATE);
+                desc = mm_cache_alloc(vm_range_cache, CACHE_ALLOC_NO_UPDATE | CACHE_ALLOC_SKIP_LOCKED);
 #else
                 desc = kmalloc(sizeof(*desc));
 #endif
@@ -261,7 +261,6 @@ static int vm_range_update_dynamic()
         return -E_SUCCESS;
 }
 
-
 static int vm_range_alloc_dynamic_init()
 {
         vm_range_alloc_ready = 0;
@@ -274,10 +273,8 @@ static int vm_range_alloc_dynamic_init()
          * Prepare the memory allocator if necessary.
          */
 #ifdef SLAB
-        vm_range_cache = mm_cache_init(
-                        "vm_range_cache",
-                        sizeof(struct vm_range_descriptor),
-                        1, NULL, NULL);
+        vm_range_cache = mm_cache_init("vm_range_cache",
+                        sizeof(struct vm_range_descriptor), 1, NULL, NULL);
         if (vm_range_cache == NULL) {
                 mutex_unlock(&vm_dynamic_initialised);
                 return -E_NOT_YET_INITIALISED;
@@ -289,7 +286,8 @@ static int vm_range_alloc_dynamic_init()
 
         idx_t i = 0;
         /* Prepare the semaphore */
-        semaphore_init(&vm_buffer.length, 0, MIN_CACHED_DESCRIPTORS, MAX_CACHED_DESCRIPTORS);
+        semaphore_init(&vm_buffer.length, 0, MIN_CACHED_DESCRIPTORS,
+                        MAX_CACHED_DESCRIPTORS);
 
         /* Load the buffer with descriptors */
         for (; i < MAX_CACHED_DESCRIPTORS; i++) {
@@ -308,7 +306,7 @@ static int vm_range_alloc_dynamic_init()
                         break;
 
                 /* Clear the descriptor of all garbage */
-                memset(desc, 0 , sizeof(*desc));
+                memset(desc, 0, sizeof(*desc));
 
                 /* Place the descriptor in the list. */
                 if (i == 0) {
@@ -375,12 +373,13 @@ int vm_range_alloc_init()
 
         /* Initialise the static pool header */
         memset(&vm_static, 0, sizeof(vm_static));
-        semaphore_init(&vm_static.length, 0, MIN_STATIC_DESCRIPTORS, MAX_CACHED_DESCRIPTORS);
+        semaphore_init(&vm_static.length, 0, MIN_STATIC_DESCRIPTORS,
+                        MAX_CACHED_DESCRIPTORS);
 
         /* Add the nodes to the static pool. */
         idx_t i = 0;
         /* memset the nodes to 0 */
-        memset (&static_ranges, 0, sizeof(static_ranges));
+        memset(&static_ranges, 0, sizeof(static_ranges));
 
         for (; i < MAX_STATIC_DESCRIPTORS; i++) {
 

@@ -29,7 +29,8 @@ extern "C" {
 
 void paging();
 void memset(void*, int, size_t);
-void memcpy(void*, void*, size_t);
+void memcpy(void*, const void*, const size_t);
+void memmove(void*, const void*, size_t);
 int memcmp(const void*, const void*, size_t);
 #ifdef SLOB
 int init_heap();

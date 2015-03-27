@@ -99,7 +99,7 @@ void memset(void *dest, int sval, size_t count)
 //         }
 // }
 
-void memcpyBack(void *dest, void *src, size_t count)
+static void memcpyBack(void *dest, void *src, size_t count)
 {
         dest += count;
         src += count;
@@ -139,7 +139,7 @@ void memcpyBack(void *dest, void *src, size_t count)
         return;
 }
 
-void memcpy(void *dest, void *src, size_t count)
+void memmove(void *dest, const void *src, size_t count)
 {
         if ((addr_t) src + count > (addr_t) dest)
                 memcpyBack(dest, src, count);
@@ -177,6 +177,16 @@ void memcpy(void *dest, void *src, size_t count)
                 *(unsigned char*) dest = *(unsigned char*) src;
         }
         return;
+}
+
+void memcpy (void* s1, const void* s2, const size_t len) {
+        size_t i = 0;
+        char* a = s1;
+        const char* b = s2;
+
+        for (; i < len; i++) {
+                a[i] = b[i];
+        }
 }
 
 int memcmp(const void* s1, const void *s2, size_t len)

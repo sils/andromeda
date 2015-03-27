@@ -70,6 +70,13 @@ struct vm_segment vm_core_segments[STATIC_SEGMENTS];
 struct vm_descriptor vm_core;
 struct tree_root* vm_loaded[CPU_LIMIT];
 
+static volatile int vm_initialised = 0;
+
+int vm_get_initialised()
+{
+        return vm_initialised;
+}
+
 static int vm_map_kernel_code(struct vm_segment* s)
 {
         if (s == NULL)
@@ -83,7 +90,7 @@ static int vm_map_kernel_code(struct vm_segment* s)
         s->code = TRUE;
         memcpy(s->name, ".code", sizeof(".code"));
 
-        vm_segment_mark_loaded_global(s);
+        int err = vm_segment_mark_loaded_global(s);
 
 #ifdef PA_DBG
         debug( "Mapping kernel code\n\n"
@@ -94,31 +101,39 @@ static int vm_map_kernel_code(struct vm_segment* s)
         );
 #endif
 
+        if (err == -E_GENERIC) {
+                panic("OMG, something went wrong, OH NOES!");
+        }
         return -E_SUCCESS;
 }
 
 static int vm_map_kernel_data(struct vm_segment* s, void* start, void* end,
                 char* name)
 {
-        if (s == NULL || start == NULL || end == NULL)
+        if (s == NULL || start == NULL || end == NULL) {
                 return -E_NULL_PTR;
-        if (!PAGE_ALIGNED((addr_t )start) || !PAGE_ALIGNED((addr_t )end))
-                return -E_INVALID_ARG;
+        }
 
-        if ((addr_t) end < (addr_t) start)
+        if (!PAGE_ALIGNED((addr_t )start) || !PAGE_ALIGNED((addr_t )end)) {
                 return -E_INVALID_ARG;
+        }
+
+        if ((addr_t) end < (addr_t) start) {
+                return -E_INVALID_ARG;
+        }
 
         s->virt_base = start;
         s->size = (addr_t) end - (addr_t) start;
         s->code = FALSE;
 
         size_t name_len = strlen(name);
-        if (name_len >= SEGMENT_NAME_LENGTH)
+        if (name_len >= SEGMENT_NAME_LENGTH) {
                 name_len = SEGMENT_NAME_LENGTH - 2;
+        }
         memcpy(s->name, name, strlen(name) + 1);
         s->name[SEGMENT_NAME_LENGTH - 1] = (char) 0;
 
-        vm_segment_mark_loaded_global(s);
+        int err = vm_segment_mark_loaded_global(s);
 #ifdef PA_DBG
         debug(
                         "name:     %s\n"
@@ -134,7 +149,10 @@ static int vm_map_kernel_data(struct vm_segment* s, void* start, void* end,
         );
 #endif
 
-        return -E_SUCCESS;
+        if (err == -E_GENERIC) {
+                panic("AYEEEEE");
+        }
+        return err;
 }
 
 /**
@@ -158,9 +176,11 @@ static int vm_map_kernel_stack(struct vm_segment* s)
         s->free = NULL;
         s->allocated = NULL;
 
-        vm_segment_mark_loaded_global(s);
-
-        return -E_NOFUNCTION;
+        int ret = vm_segment_mark_loaded_global(s);
+        if (ret == -E_GENERIC) {
+                panic("Something went wrong!");
+        }
+        return ret;
 }
 
 static int vm_kernel_add_range(struct vm_segment* s)
@@ -189,6 +209,10 @@ extern int initial_slab_space;
  */
 int vm_init()
 {
+        if (vm_initialised != 0) {
+                panic("already initialised VM");
+        }
+        vm_initialised = 1;
         /* Nullify the pte core, so it can be set up */
         memset(&vm_core, 0, sizeof(vm_core));
         idx_t i = 0;
@@ -261,6 +285,7 @@ int vm_init()
         if (heap != -E_SUCCESS) {
                 warning("heap data mapping failed!\n");
         }
+        vm_initialised = 2;
 
         heap |= vm_kernel_add_range(&vm_core_segments[3]);
         if (heap != -E_SUCCESS) {
@@ -295,11 +320,13 @@ int vm_init()
 
         mm_vm_range_buffer_start = 1;
 
+        vm_initialised = 3;
 #ifdef VM_TEST
         if (vm_test() != -E_SUCCESS) {
                 panic("Failure in vm_test code!");
         }
 #endif
+        vm_initialised = 4;
         return ret;
 }
 

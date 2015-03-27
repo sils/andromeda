@@ -121,22 +121,26 @@ static int detect_loop(struct vm_range_descriptor* head, char* list_name)
 static int vm_range_mark_allocated(segment, range)
         struct vm_segment* segment;struct vm_range_descriptor* range;
 {
-        if (segment == NULL || range == NULL)
+        if (segment == NULL || range == NULL) {
                 return -E_NULL_PTR;
+        }
 
         /* Disconnect the node from the free list, maybe is a bit messy */
-        if (range->prev == NULL)
+        if (range->prev == NULL) {
                 segment->free = range->next;
-        else
+        } else {
                 range->prev->next = range->next;
-        if (range->next != NULL)
+        }
+        if (range->next != NULL) {
                 range->next->prev = range->prev;
+        }
 
         /* And add the range into the allocated list. */
         range->prev = NULL;
         range->next = segment->allocated;
-        if (range->next != NULL)
+        if (range->next != NULL) {
                 range->next->prev = range;
+        }
         segment->allocated = range;
 
 #ifdef VM_RANGE_LOOP_DETECT
@@ -158,21 +162,25 @@ static int vm_range_mark_mapped(segment, range)
          * out of the list.
          */
         if (range->prev == NULL) {
-                if (segment->allocated == range)
+                if (segment->allocated == range) {
                         segment->allocated = range->next;
-                else
+                } else {
                         return -E_INVALID_ARG;
-        } else
+                }
+        } else {
                 range->prev->next = range->next;
+        }
 
-        if (range->next != NULL)
+        if (range->next != NULL) {
                 range->next->prev = range->prev;
+        }
 
         /* Now stuff the range into the mapped list */
         range->prev = NULL;
         range->next = segment->mapped;
-        if (segment->mapped != NULL)
+        if (segment->mapped != NULL) {
                 segment->mapped->prev = range;
+        }
         segment->mapped = range;
 
 #ifdef VM_RANGE_LOOP_DETECT
@@ -233,21 +241,25 @@ static int vm_range_mark_free(segment, range)
 
         /* Dislodge the range and restore the order of the list */
         if (range->prev == NULL) {
-                if (segment->allocated == range)
+                if (segment->allocated == range) {
                         segment->allocated = range->next;
-                else
+                } else {
                         return -E_INVALID_ARG;
-        } else
+                }
+        } else {
                 range->prev->next = range->next;
+        }
 
-        if (range->next != NULL)
+        if (range->next != NULL) {
                 range->next->prev = range->prev;
+        }
 
         /* Put this range at the start of the free list */
         range->prev = NULL;
         range->next = segment->free;
-        if (segment->free != NULL)
+        if (segment->free != NULL) {
                 segment->free->prev = range;
+        }
         segment->free = range;
 
         return -E_SUCCESS;
@@ -301,8 +313,9 @@ static inline int vm_range_remove_node(range)
 static int vm_segment_compress_ranges(segment, range)
         struct vm_segment* segment;struct vm_range_descriptor* range;
 {
-        if (segment == NULL || range == NULL)
+        if (segment == NULL || range == NULL) {
                 return -E_NULL_PTR;
+        }
 #ifdef VM_RANGE_LOOP_DETECT
         detect_loop(segment->allocated, "allocated");
         detect_loop(segment->mapped, "mapped");
@@ -313,6 +326,7 @@ static int vm_segment_compress_ranges(segment, range)
         struct vm_range_descriptor* x = segment->free;
         struct vm_range_descriptor* next = NULL;
 
+        int i = 0;
         while (x != NULL ) {
                 next = x->next;
                 if (x->base + x->size == range->base) {
@@ -394,16 +408,19 @@ int vm_segment_free(struct vm_segment* s, void* ptr)
  */
 static int vm_range_split(struct vm_range_descriptor* src, size_t size)
 {
-        if (src == NULL || size == 0)
+        if (src == NULL || size == 0) {
                 return -E_NULL_PTR;
+        }
 
-        if (src->size == size)
+        if (src->size == size) {
                 return -E_SUCCESS;
+        }
 
         /* Create a new descritor to keep track of the other bit of memory */
         struct vm_range_descriptor* tmp = vm_range_alloc();
-        if (tmp == NULL)
+        if (tmp == NULL) {
                 return -E_NULL_PTR;
+        }
 
         /* Basic intialisation */
         memset(tmp, 0, sizeof(*tmp));
@@ -434,8 +451,9 @@ static int vm_range_split(struct vm_range_descriptor* src, size_t size)
  */
 void* vm_segment_alloc(struct vm_segment *s, size_t size)
 {
-        if (s == NULL || size == 0 || s->free == NULL)
+        if (s == NULL || size == 0 || s->free == NULL) {
                 return NULL ;
+        }
 
         /*
          * If the size is not page allocation aligned, align it by rounding up.
@@ -444,8 +462,9 @@ void* vm_segment_alloc(struct vm_segment *s, size_t size)
          * keeping track of the number of references to the physically allocated
          * range.
          */
-        if (size % PAGE_ALLOC_FACTOR != 0)
+        if (size % PAGE_ALLOC_FACTOR != 0) {
                 size += PAGE_ALLOC_FACTOR - size % PAGE_ALLOC_FACTOR;
+        }
 
         /* There's a mutex here, don't forget to unlock */
         int locked = mutex_test(&s->lock);
@@ -465,12 +484,14 @@ void* vm_segment_alloc(struct vm_segment *s, size_t size)
                  * If x matches the size requirement AND if x is a better fit
                  * than what we found before, mark this as our new best fit.
                  */
-                if (x->size >= size && (tmp == NULL || tmp->size < x->size))
+                if (x->size >= size && (tmp == NULL || tmp->size < x->size)) {
                         tmp = x;
+                }
         }
         /* If we didn't find anything we have no option but returning */
-        if (tmp == NULL)
+        if (tmp == NULL) {
                 goto err;
+        }
 
         /* If the range needs to be split up, do so here */
         vm_range_split(tmp, size);
@@ -523,8 +544,9 @@ void* vm_map(void* virt, void* phys, struct vm_segment* s)
         size_t i = 0;
         for (; i < cnt; i += PAGE_ALLOC_FACTOR)
         {
-                if (page_claim((void*) (p + i)) == NULL)
+                if (page_claim((void*) (p + i)) == NULL) {
                         goto gofixit;
+                }
                 page_map(0, (void*) (v + i), (void*) (p + 1), 0);
         }
 
@@ -609,7 +631,9 @@ vm_find_segment(char* name)
 
                 next: i = i->next;
         }
-        printf("Not found!\n");
+        if (vm_get_initialised() >= 2) {
+                warning("Segment not found!\n");
+        }
         return NULL ;
 }
 
@@ -660,15 +684,19 @@ int vm_free_kernel_heap_pages(void* ptr)
 void*
 vm_get_kernel_heap_pages(size_t size)
 {
-        if (size == 0)
+        if (size == 0) {
                 return NULL ;
+        }
 
-        if (size % PAGE_ALLOC_FACTOR != 0)
+        if (size % PAGE_ALLOC_FACTOR != 0) {
                 size += PAGE_ALLOC_FACTOR - size % PAGE_ALLOC_FACTOR;
+        }
 
         struct vm_segment* heap = vm_find_segment(".heap");
         if (heap == NULL) {
-                warning("Heap not found!\n");
+                if (vm_get_initialised() >= 2) {
+                        warning("Heap not found!\n");
+                }
                 return NULL ;
         }
 

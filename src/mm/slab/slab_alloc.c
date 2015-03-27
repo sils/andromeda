@@ -37,6 +37,7 @@ extern struct mm_cache mm_slab_cache;
 /**
  * \fn mm_slab_move
  * \brief Move the requested entry from list to list.
+ * \warning Only call when cache is mutex locked!!!
  * \param from
  * \param to
  * \param entry
@@ -48,11 +49,13 @@ static int mm_slab_move(from, to, entry)
         /*
          * first some argument checking (as always)
          */
-        if (entry == NULL)
+        if (entry == NULL) {
                 return -E_NULL_PTR;
+        }
 
-        if (from >= 3 || to >= 3 || to == from)
+        if (from >= 3 || to >= 3 || to == from) {
                 return -E_INVALID_ARG;
+        }
 
         /*
          * Set the initial variables
@@ -60,10 +63,6 @@ static int mm_slab_move(from, to, entry)
         struct mm_cache* cache = entry->cache;
         struct mm_slab* cariage = NULL;
 
-        /*
-         * Enter the atomic section
-         */
-        mutex_lock(&cache->lock);
         /*
          * Select the list to move from
          * If entry is first in the list, unlock it from the pointer then skip
@@ -106,7 +105,6 @@ static int mm_slab_move(from, to, entry)
                 /*
                  * Do the "We're screwed" part
                  */
-                mutex_unlock(&cache->lock);
                 return -E_CORRUPT;
         }
 
@@ -131,10 +129,6 @@ static int mm_slab_move(from, to, entry)
                 cache->slabs_full = entry;
                 break;
         }
-        /*
-         * Leave the atomic section and return success
-         */
-        mutex_unlock(&cache->lock);
         return -E_SUCCESS;
 }
 
@@ -150,8 +144,9 @@ mm_slab_alloc(struct mm_slab* slab, int flags)
         /*
          * Some argument checking
          */
-        if (slab == NULL)
+        if (slab == NULL) {
                 return NULL ;
+        }
 
         /*
          * Entering the atomic part
@@ -230,12 +225,14 @@ static int mm_slab_free(struct mm_slab* slab, void* ptr)
          * Some standard argument checking
          * along with setting up the variables
          */
-        if (slab == NULL || ptr == NULL)
+        if (slab == NULL || ptr == NULL) {
                 return -E_NULL_PTR;
+        }
 
         addr_t idx = (addr_t) ptr - (addr_t) slab->obj_ptr;
-        if (idx % slab->cache->alignment != 0)
+        if (idx % slab->cache->alignment != 0) {
                 return -E_INVALID_ARG;
+        }
 
         idx /= slab->cache->alignment;
 
@@ -244,13 +241,14 @@ static int mm_slab_free(struct mm_slab* slab, void* ptr)
         /*
          * Verify that the entry actually is allocated
          */
-        if (map[idx] != SLAB_ENTRY_ALLOCATED)
+        if (map[idx] != SLAB_ENTRY_ALLOCATED) {
                 return -E_ALREADY_FREE;
+        }
 
         /*
          * And now the atomic parts
          */
-        mutex_lock(&slab->lock);
+        mutex_test(&slab->lock);
 
         /*
          * Mark the entry as free
@@ -261,9 +259,10 @@ static int mm_slab_free(struct mm_slab* slab, void* ptr)
         /*
          * Move the slab if no longer full
          */
-        if (slab->objs_full == slab->objs_total)
+        if (slab->objs_full == slab->objs_total) {
                 // Move slab from slabs_full to slabs_partial
                 mm_slab_move(state_full, state_partial, slab);
+        }
 
         /*
          * Update the allocated object counter
@@ -272,9 +271,10 @@ static int mm_slab_free(struct mm_slab* slab, void* ptr)
         /*
          * Move the slab if it is empty
          */
-        if (slab->objs_full == 0)
+        if (slab->objs_full == 0) {
                 // Move slab from slabs_partial to slabs_empty
                 mm_slab_move(state_partial, state_empty, slab);
+        }
 
         /*
          * Exit the atomic parts now
@@ -349,8 +349,8 @@ mm_cache_alloc(struct mm_cache* cache, uint16_t flags)
                         struct mm_slab* slab = vm_get_kernel_heap_pages(
                                         no_pages);
                         if (slab == NULL) {
-                                warning("Unable to do memory allocation at "
-                                                "this time!\n");
+                                /*warning("Unable to do memory allocation at "
+                                                "this time!\n");*/
                                 goto err;
                         }
 
@@ -453,8 +453,9 @@ int mm_cache_free(struct mm_cache* cache, void* ptr)
         mutex_lock(&cache->lock);
 
         struct mm_slab* tmp = mm_cache_search_ptr(cache->slabs_full, ptr);
-        if (tmp == NULL)
+        if (tmp == NULL) {
                 tmp = mm_cache_search_ptr(cache->slabs_partial, ptr);
+        }
 
         /*
          * We have found the pointer (we hope) and nothing is going to change
@@ -466,19 +467,26 @@ int mm_cache_free(struct mm_cache* cache, void* ptr)
          * If the argument is correct, return the freeing error code else
          * return an ivalid argument code
          */
-        if (tmp == NULL)
+        if (tmp == NULL) {
                 return -E_INVALID_ARG;
+        }
 
         /*
          * Call the destructor if relevant
          */
-        if (cache->dtor != NULL)
+        if (cache->dtor != NULL) {
                 cache->dtor(ptr, cache, 0);
+        }
 
         /*
-         * And do the actual freeing bit (can you beleive this, only one line!!!
+         * And do the actual freeing bit
          */
-        return mm_slab_free(tmp, ptr);
+
+        mutex_lock(&cache->lock);
+        int ret = mm_slab_free(tmp, ptr);
+        mutex_unlock(&cache->lock);
+
+        return ret;
 }
 
 static struct mm_cache*
@@ -572,12 +580,12 @@ void kmem_free(void* ptr, size_t size)
                         return;
                 case -E_NULL_PTR:
                         panic("Null pointer alert!");
-                        break; /* Keep the ide happy ... */
+                        break;
                 case -E_INVALID_ARG:
                         panic("Something somewhere went terribly wrong");
-                        break; /* Keep the ide happy ... */
+                        break;
                 default:
-                        printf("Err code: %X\n", freed);
+                        debug ("Kmemfree err code: %X\n", freed);
                 }
                 candidate = kmem_find_next_candidate(candidate, size);
         }

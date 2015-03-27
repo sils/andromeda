@@ -162,6 +162,7 @@ int vm_range_free(struct vm_range_descriptor* descriptor);
 int vm_range_update();
 
 /* Specialised functions */
+int vm_get_initialised() ;
 int vm_init();
 void* vm_get_phys(int cpu, void* virt);
 void* x86_pte_get_phys(void* virt);

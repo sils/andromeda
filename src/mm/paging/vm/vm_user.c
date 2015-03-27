@@ -27,22 +27,26 @@
  * \addtogroup VM
  * @{
  */
-
+static int dbg = 0;
 int vm_segment_mark_loaded_global(struct vm_segment* s)
 {
         idx_t i = 0;
-        for (; i < CPU_LIMIT; i++)
+        dbg++;
+        for (; i < CPU_LIMIT; i++) {
                 vm_segment_mark_loaded(i, s);
+        }
         return -E_SUCCESS;
 }
 
 int vm_segment_mark_loaded(int cpuid, struct vm_segment* s)
 {
-        if (vm_loaded[cpuid]->find((int) s->virt_base, vm_loaded[cpuid]) != NULL)
+        if (vm_loaded[cpuid]->find((int) s->virt_base, vm_loaded[cpuid]) != NULL) {
                 return -E_ALREADY_INITIALISED;
+        }
 
-        if (vm_loaded[cpuid]->add((int) s->virt_base, s, vm_loaded[cpuid]) != -E_SUCCESS)
+        if (vm_loaded[cpuid]->add((int) s->virt_base, s, vm_loaded[cpuid]) != -E_SUCCESS) {
                 return -E_GENERIC;
+        }
         return -E_SUCCESS;
 }
 
@@ -91,11 +95,13 @@ vm_get_loaded(int cpuid, void* addr)
                         tree = tree->next;
                 }
 
-                if (tree == NULL)
+                if (tree == NULL) {
                         return NULL ;
+                }
 
-                if (go_fwd == TRUE && go_back == TRUE)
+                if (go_fwd == TRUE && go_back == TRUE) {
                         return NULL ;
+                }
 
                 segment = tree->data;
         }
