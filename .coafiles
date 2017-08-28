@@ -1,0 +1,4 @@
+[c]
+files = .coafiles
+bears = SpaceConsistencyBear
+use_spaces = yeah
